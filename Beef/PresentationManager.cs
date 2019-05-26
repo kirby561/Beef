@@ -207,8 +207,35 @@ namespace Beef {
             return SubmitRequests();
         }
 
+        /// <summary>
+        /// Renames the given player to the new name in the bracket.
+        /// If they aren't in the bracket nothing happens.
+        /// </summary>
+        /// <param name="oldName">The existing name.</param>
+        /// <param name="newName">The new name.</param>
+        /// <returns>Returns true if the rename happened.  False if there was an error.</returns>
         public Boolean RenamePlayer(String oldName, String newName) {
-            return false; // ?? TODO
+            List<BeefEntry> entries = ReadBracket();
+            if (entries.Count == 0)
+                return false; // There was an error reading the bracket.
+
+            // Get the object ID for this player
+            BeefEntry existingPlayerEntry = null;
+            for (int i = 0; i < entries.Count; i++) {
+                BeefEntry entry = entries[i];
+                if (oldName.Equals(entry.PlayerName)) {
+                    existingPlayerEntry = entry;
+                    break;
+                }
+            }
+
+            if (existingPlayerEntry == null)
+                return false; // Player not found
+
+            // Remove the existing and add the new one
+            AddDeleteRequest(existingPlayerEntry);
+            AddInsertRequest(existingPlayerEntry, newName);
+            return SubmitRequests();
         }
 
         /// <summary>
