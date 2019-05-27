@@ -10,7 +10,6 @@ namespace Beef {
         public void Run() {
             // TODO: 
             //  1) Proper error messaging and messaging in general
-            //  2) Command interpretation
             //  3) Discord integration/server
             //  4) Auto bracket backup
             //  5) Bracket restore from backup
