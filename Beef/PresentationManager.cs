@@ -49,7 +49,6 @@ namespace Beef {
                     "user",
                     CancellationToken.None,
                     new FileDataStore(credPath, true)).Result;
-                Console.WriteLine("Credential file saved to: " + credPath);
             }
 
             // Create Google Slides API service.
@@ -280,7 +279,7 @@ namespace Beef {
             // Sort just in case the order of the elements isn't the same
             // as the labeled rank in each.
             _entries.Sort();
-
+            
             return _entries;
         }
 
