@@ -9,8 +9,9 @@ namespace Beef {
         private String m_BotIndicator = ".";
         private PresentationManager _manager;
         private Boolean _shouldRun = true;
+        private String[] _leaderRoles = new String[] { "BattleCruiser", "Executor (MOD)", "Ghosts (Leaders)" };
 
-        private DiscordSocketClient _discordClient;
+    private DiscordSocketClient _discordClient;
 
         public Application() {
             _discordClient = new DiscordSocketClient();
@@ -26,7 +27,7 @@ namespace Beef {
             //  1) Auto bracket backup
             //  2) Bracket restore from backup
             //  3) Undo/Redo
-            //  4) Specify bracket in config file.
+            //  4) Specify bracket in config file.  Actually an app-wide config file would be best
             _manager = new PresentationManager("credentials.json");
 
             // Tokens should be considered secret data, and never hard-coded.
@@ -36,6 +37,27 @@ namespace Beef {
 
             // Block the program until it is closed.
             await Task.Delay(-1);
+        }
+
+        /// <summary>
+        /// Checks if the given user is a Battle Cruiser, Executor (Mod), or Ghost (Leader)
+        /// </summary>
+        /// <param name="user">The user to check</param>
+        /// <returns>True if they have the are priviledged</returns>
+        private Boolean IsLeader(SocketUser socketUser) {
+            var user = socketUser as SocketGuildUser;
+
+            if (user != null) {
+                foreach (SocketRole role in user.Roles) {
+                    foreach (String leaderRole in _leaderRoles) {
+                        if (leaderRole.Equals(role.Name)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
         }
 
         private void HandleCommand(SocketMessage userInput) {
@@ -49,6 +71,7 @@ namespace Beef {
             }
 
             if (arguments[0] == ".beef") {
+                SocketUser author = userInput.Author;
                 ISocketMessageChannel channel = userInput.Channel;
                 ErrorCode code = ErrorCode.CommandNotRecognized;
 
@@ -59,6 +82,11 @@ namespace Beef {
 
                 if (arguments.Length == 4) {
                     if (arguments[2] == "beat" || arguments[2] == "beats") {
+                        if (!IsLeader(author)) {
+                            MessageChannel(channel, "You don't have permission to do that.").GetAwaiter().GetResult();
+                            return;
+                        }
+
                         String winningPlayer = arguments[1];
                         String losingPlayer = arguments[3];
 
@@ -80,12 +108,19 @@ namespace Beef {
                         if (code.Ok())
                             MessageChannel(channel, "The Ladder has been updated.").GetAwaiter().GetResult();
                     } else if (arguments[1] == "rename") {
+                        if (!IsLeader(author)) {
+                            MessageChannel(channel, "You don't have permission to do that.").GetAwaiter().GetResult();
+                            return;
+                        }
+
                         code = _manager.RenamePlayer(arguments[2], arguments[3]);
                         if (code.Ok())
-                            MessageChannel(channel, arguments[2] + " has been renamed to " + arguments[3]).GetAwaiter().GetResult();
+                            MessageChannel(channel, "**" + arguments[2] + "** has been renamed to **" + arguments[3] + "**").GetAwaiter().GetResult();
                     }
                 } else if (arguments.Length == 2) {
                     if (arguments[1] == "bracket" || arguments[1] == "list" || arguments[1] == "ladder") {
+                        IsLeader(userInput.Author);
+
                         List<BeefEntry> entries = _manager.ReadBracket();
 
                         if (entries.Count == 0)
@@ -100,28 +135,43 @@ namespace Beef {
                             }
                             MessageChannel(channel, bracket).GetAwaiter().GetResult();
                         }
-                    } else if (arguments[1] == "help") {
-                        code = ErrorCode.Success;
-
-                        String help = "";
-                        help += "The Beef ladder is maintained on Google Docs as a Slide presentation.  This bot makes it more convenient to update it.  Each Beef command is prefixed with \".beef\".\n";
-                        help += "The following commands are available:\n";
-                        help += "\t **.beef help** - Prints this message\n";
-                        help += "\t **.beef _<WinningPlayerOrRank>_ beat _<LosingPlayerOrRank>_** - Updates the ladder such that the winning player is placed in the losing player's position and everyone inbetween is shuffled to the right by one.\n";
-                        help += "\t\t\t You can specifiy a rank or a name for each player.  Names are case sensitive.  Examples:\n";
-                        help += "\t\t\t\t **.beef 4 beat 3**.  --  Will swap player in rank 4 with player in rank 3.\n";
-                        help += "\t\t\t\t **.beef 4 beat 1**.  --  Will put the rank 4 player in rank 1, the rank 1 player in rank 2, and the rank 3 player in rank 4\n";
-                        help += "\t\t\t\t **.beef bum beat GamerRichy**.  --  Will put bum in rank 1, GamerRichy in rank 2, and shuffle everyone else accordingly.\n";
-                        help += "\t **.beef _<WinningPlayerOrRank>_ beats _<LosingPlayerOrRank>_**. - Same as .beef X beat Y (It accepts beats and beat)\n";
-                        help += "\t **.beef list**. - Prints out the current ranks of everyone in the ladder.\n";
-                        help += "\t **.beef ladder**. - Same as .beef list\n";
-                        help += "\t **.beef bracket**. - Same as .beef list\n";
-
-                        MessageChannel(channel, help).GetAwaiter().GetResult();
                     } else if (arguments[1].Equals("quit") || arguments[1].Equals("exit")) {
+                        if (!IsLeader(author)) {
+                            MessageChannel(channel, "You don't have permission to do that.").GetAwaiter().GetResult();
+                            return;
+                        }
+
                         code = ErrorCode.Success;
                         _shouldRun = false;
                     }
+                }
+
+                if (arguments.Length >= 2 && arguments[1] == "help") {
+                    code = ErrorCode.Success;
+
+                    String help = "";
+                    help += "The Beef ladder is maintained on Google Docs as a Slide presentation.  This bot makes it more convenient to update it.  Each Beef command is prefixed with \".beef\".\n";
+                    help += "The following commands are available:\n";
+                    help += "\t **.beef help** - DMs this message to the user who typed it\n";
+                    help += "\t **.beef help all** - Sends this message to the current channel\n";
+                    help += "\t **.beef list**. - Prints out the current ranks of everyone in the ladder.\n";
+                    help += "\t **.beef ladder**. - Same as .beef list\n";
+                    help += "\t **.beef bracket**. - Same as .beef list\n";
+                    help += "\nThe following commands are admin only:\n";
+                    help += "\t **.beef _<WinningPlayerOrRank>_ beat _<LosingPlayerOrRank>_** - Updates the ladder such that the winning player is placed in the losing player's position and everyone inbetween is shuffled to the right by one.\n";
+                    help += "\t\t\t You can specifiy a rank or a name for each player.  Names are case sensitive.  Examples:\n";
+                    help += "\t\t\t\t **.beef 4 beat 3**.  --  Will swap the player in rank 4 with player in rank 3.\n";
+                    help += "\t\t\t\t **.beef 4 beat 1**.  --  Will put the rank 4 player in rank 1, the rank 1 player in rank 2, and the rank 3 player in rank 4\n";
+                    help += "\t\t\t\t **.beef bum beat GamerRichy**.  --  Will put bum in rank 1, GamerRichy in rank 2, and shuffle everyone else accordingly.\n";
+                    help += "\t **.beef _<WinningPlayerOrRank>_ beats _<LosingPlayerOrRank>_**. - Same as .beef X beat Y (It accepts beats and beat)\n";
+                    help += "\t **.beef rename _<OldPlayerName>_ _<NewPlayerName>_**. - Renames a player on the ladder to the new name.\n";
+
+                    // Send the help message to all if requested.  Otherwise
+                    // just DM it to the user that asked.
+                    if (arguments.Length >= 3 && arguments[2] == "all")
+                        MessageChannel(channel, help).GetAwaiter().GetResult();
+                    else
+                        MessageUser(userInput.Author, help).GetAwaiter().GetResult();
                 }
 
                 if (!code.Ok()) {
@@ -182,6 +232,11 @@ namespace Beef {
         private async Task MessageChannel(ISocketMessageChannel channel, String message) {
             Console.WriteLine(message);
             await channel.SendMessageAsync(message);
+        }
+
+        private async Task MessageUser(SocketUser user, String message) {
+            Console.WriteLine("To " + user.Username + ": " + message);
+            await user.SendMessageAsync(message);
         }
 
         private async Task MessageErrorToChannel(ISocketMessageChannel channel, ErrorCode code) {
