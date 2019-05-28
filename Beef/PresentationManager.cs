@@ -36,7 +36,7 @@ namespace Beef {
         /// Authenticates and opens the presentation.
         /// </summary>
         /// <returns>Returns false if authentication failed or the presentation couldn't be opened.</returns>
-        public Boolean Authenticate() {
+        public ErrorCode Authenticate() {
             UserCredential credential;
 
             using (var stream = new FileStream("credentials.json", FileMode.Open, FileAccess.Read)) {
@@ -63,9 +63,9 @@ namespace Beef {
             // Prints all the beef participants
             _presentation = request.Execute();
             if (_presentation != null)
-                return true;
+                return ErrorCode.Success;
 
-            return false;
+            return ErrorCode.AuthenticationFailed;
         }
 
         /// <summary>
@@ -74,15 +74,15 @@ namespace Beef {
         /// <param name="winnerName">The name of the winner.</param>
         /// <param name="loserRank">The rank of the loser.</param>
         /// <returns></returns>
-        public Boolean ReportWin(String winnerName, int loserRank) {
+        public ErrorCode ReportWin(String winnerName, int loserRank) {
             List<BeefEntry> entries = ReadBracket();
             if (entries.Count == 0)
-                return false; // There was an error reading the bracket.
+                return ErrorCode.CouldNotReadTheLadder; // There was an error reading the bracket.
 
             int loserIndex = loserRank - 1;
 
             if (loserIndex < 0 || loserIndex >= entries.Count)
-                return false; // Invalid loser rank
+                return ErrorCode.LoserRankInvalid; // Invalid loser rank
 
             // Check for the winner
             int winnerIndex = -1;
@@ -95,7 +95,7 @@ namespace Beef {
                         winnerIndex = i;
                     else {
                         // The name is in there twice?
-                        return false;
+                        return ErrorCode.DuplicateWinnerEntriesWithSameName;
                     }
                 }
             }
@@ -107,35 +107,35 @@ namespace Beef {
             return ReportWin(entries, winnerName, winnerIndex, loserIndex);
         }
 
-        public Boolean ReportWin(int winnerRank, int loserRank) {
+        public ErrorCode ReportWin(int winnerRank, int loserRank) {
             List<BeefEntry> entries = ReadBracket();
             if (entries.Count == 0)
-                return false; // There was an error reading the bracket.
+                return ErrorCode.CouldNotReadTheLadder; // There was an error reading the bracket.
 
             if (winnerRank <= loserRank)
-                return false; // You can't beat yourself and if you beat someone below you nothing happens.
+                return ErrorCode.WinnerCantBeHigherThanLoser; // You can't beat yourself and if you beat someone below you nothing happens.
 
             int winnerIndex = winnerRank - 1;
             int loserIndex = loserRank - 1;
 
             if (winnerIndex < 0 || winnerIndex >= entries.Count)
-                return false; // Invalid winner rank
+                return ErrorCode.WinnerRankInvalid; // Invalid winner rank
 
             if (loserIndex < 0 || loserIndex >= entries.Count)
-                return false; // Invalid loser rank
+                return ErrorCode.LoserRankInvalid; // Invalid loser rank
 
             // Get the winner name
             String winnerName = entries[winnerIndex].PlayerName;
             return ReportWin(entries, winnerName, winnerIndex, loserIndex);
         }
 
-        public Boolean ReportWin(String winnerName, String loserName) {
+        public ErrorCode ReportWin(String winnerName, String loserName) {
             List<BeefEntry> entries = ReadBracket();
             if (entries.Count == 0)
-                return false; // There was an error reading the bracket.
+                return ErrorCode.CouldNotReadTheLadder;
 
             if (winnerName.Equals(loserName))
-                return false; // You can't beat yourself.
+                return ErrorCode.YouCantBeatYourself;
 
             int winnerIndex = -1;
             int loserIndex = -1;
@@ -148,7 +148,7 @@ namespace Beef {
                         winnerIndex = i;
                     else {
                         // The name is in there twice?
-                        return false;
+                        return ErrorCode.DuplicateWinnerEntriesWithSameName;
                     }
                 }
 
@@ -158,7 +158,7 @@ namespace Beef {
                         loserIndex = i;
                     else {
                         // The name is in there twice?
-                        return false;
+                        return ErrorCode.DuplicateLoserEntriesWithSameName;
                     }
                 }
             }
@@ -170,7 +170,7 @@ namespace Beef {
 
             if (loserIndex == -1) {
                 // This is a problem. You can't beat someone not on the bracket to get on the bracket...
-                return false;
+                return ErrorCode.LoserIsNotOnTheLadder;
             }
 
             return ReportWin(entries, winnerName, winnerIndex, loserIndex);
@@ -184,7 +184,7 @@ namespace Beef {
         ///                           (Or 1 passed the last index if the winner is not yet on the bracket)</param>
         /// <param name="loserIndex">The INDEX of the loser.  Note that this is NOT the rank, it is the rank - 1</param>
         /// <returns>Returns true if the bracket was successfully updated.  False otherwise.</returns>
-        private Boolean ReportWin(List<BeefEntry> entries, String winnerName, int winnerIndex, int loserIndex) {
+        private ErrorCode ReportWin(List<BeefEntry> entries, String winnerName, int winnerIndex, int loserIndex) {
             for (int i = loserIndex; i <= winnerIndex; i++) {
                 // If the winner wasn't on the bracket, then we want to bail out here
                 if (i == entries.Count)
@@ -213,10 +213,10 @@ namespace Beef {
         /// <param name="oldName">The existing name.</param>
         /// <param name="newName">The new name.</param>
         /// <returns>Returns true if the rename happened.  False if there was an error.</returns>
-        public Boolean RenamePlayer(String oldName, String newName) {
+        public ErrorCode RenamePlayer(String oldName, String newName) {
             List<BeefEntry> entries = ReadBracket();
             if (entries.Count == 0)
-                return false; // There was an error reading the bracket.
+                return ErrorCode.CouldNotReadTheLadder; // There was an error reading the bracket.
 
             // Get the object ID for this player
             BeefEntry existingPlayerEntry = null;
@@ -229,7 +229,7 @@ namespace Beef {
             }
 
             if (existingPlayerEntry == null)
-                return false; // Player not found
+                return ErrorCode.NoExistingPlayerByThatName; // Player not found
 
             // Remove the existing and add the new one
             AddDeleteRequest(existingPlayerEntry);
@@ -287,15 +287,16 @@ namespace Beef {
         /// Submits all the queued requests in one batch and indicates if it succeeded or not.
         /// </summary>
         /// <returns>Returns true if it succeeded, false otherwise.  (TODO: Make it actually return false if it fails)</returns>
-        public Boolean SubmitRequests() {
+        public ErrorCode SubmitRequests() {
             var requestListUpdate = new BatchUpdatePresentationRequest();
             requestListUpdate.Requests = _requestList;
 
             PresentationsResource.BatchUpdateRequest batchRequest = _service.Presentations.BatchUpdate(requestListUpdate, _presentationId);
             BatchUpdatePresentationResponse response = batchRequest.Execute();
 
+            // ?? TODO: How to detect an error here?
             _requestList.Clear();
-            return true;
+            return ErrorCode.Success;
         }
 
         /// <summary>
