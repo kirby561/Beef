@@ -25,6 +25,11 @@ namespace Beef {
         // Renaming
         NoExistingPlayerByThatName,
 
+        // Undo
+        NothingToUndo,
+        LadderDifferentSize,
+        CouldNotRevertBackupFile,
+
         // Commands
         CommandNotRecognized,
     }
@@ -58,8 +63,14 @@ namespace Beef {
                     return "That loser isn't even on the ladder.  Is this the level of proficiency you have in other things in life too?";
                 case ErrorCode.NoExistingPlayerByThatName:
                     return "How can I rename a player that doesn't exist?  Seriously, check the ladder.  That name's not on it.";
+                case ErrorCode.NothingToUndo:
+                    return "You haven't done anything yet wtf!?";
+                case ErrorCode.LadderDifferentSize:
+                    return "Okok I'll give.  This one is my bad.  I can't restore a backup that's a different size than the current ladder because that's way too much work.";
                 case ErrorCode.CommandNotRecognized:
                     return "Not a command bro.  Try \"**.beef help**\" so you have some clue what you're doing next time.";
+                case ErrorCode.CouldNotRevertBackupFile:
+                    return "There was a problem moving the undone backup file to the archive.  This indicates a problem with the file system.";
                 default:
                     return "Well I don't know what happened but it can't be good.";
             }

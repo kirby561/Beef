@@ -2,6 +2,7 @@
 using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Beef {
@@ -9,11 +10,13 @@ namespace Beef {
         private String m_BotIndicator = ".";
         private PresentationManager _manager;
         private Boolean _shouldRun = true;
-        private String[] _leaderRoles = new String[] { "BattleCruiser", "Executor (MOD)", "Ghosts (Leaders)" };
+        private String[] _leaderRoles = new String[] { "Battlecruiser", "Executor (MOD)", "Ghosts (Leaders)" };
+        private String _exePath;
 
     private DiscordSocketClient _discordClient;
 
-        public Application() {
+        public Application(String exePath) {
+            _exePath = Directory.GetParent(exePath).FullName;
             _discordClient = new DiscordSocketClient();
 
             _discordClient.Log += LogAsync;
@@ -28,7 +31,7 @@ namespace Beef {
             //  2) Bracket restore from backup
             //  3) Undo/Redo
             //  4) Specify bracket in config file.  Actually an app-wide config file would be best
-            _manager = new PresentationManager("credentials.json");
+            _manager = new PresentationManager("credentials.json", _exePath + "/Backups");
 
             // Tokens should be considered secret data, and never hard-coded.
             String token = Environment.GetEnvironmentVariable("token");
@@ -126,7 +129,7 @@ namespace Beef {
                         if (entries.Count == 0)
                             code = ErrorCode.CouldNotReadTheLadder;
                         else {
-                            code = ErrorCode.Success; 
+                            code = ErrorCode.Success;
 
                             // Print bracket
                             String bracket = "";
@@ -134,6 +137,16 @@ namespace Beef {
                                 bracket += entry.PlayerRank + ". " + entry.PlayerName + "\n";
                             }
                             MessageChannel(channel, bracket).GetAwaiter().GetResult();
+                        }
+                    } else if (arguments[1].Equals("undo")) {
+                        if (!IsLeader(author)) {
+                            MessageChannel(channel, "You don't have permission to do that.").GetAwaiter().GetResult();
+                            return;
+                        }
+
+                        code = _manager.Undo();
+                        if (code.Ok()) {
+                            MessageChannel(channel, "Undid what you should have done undid 10 minutes ago.").GetAwaiter().GetResult();
                         }
                     } else if (arguments[1].Equals("quit") || arguments[1].Equals("exit")) {
                         if (!IsLeader(author)) {
@@ -165,6 +178,7 @@ namespace Beef {
                     help += "\t\t\t\t **.beef bum beat GamerRichy**.  --  Will put bum in rank 1, GamerRichy in rank 2, and shuffle everyone else accordingly.\n";
                     help += "\t **.beef _<WinningPlayerOrRank>_ beats _<LosingPlayerOrRank>_**. - Same as .beef X beat Y (It accepts beats and beat)\n";
                     help += "\t **.beef rename _<OldPlayerName>_ _<NewPlayerName>_**. - Renames a player on the ladder to the new name.\n";
+                    help += "\t **.beef undo**. - Undoes the last change to the ladder (renames, wins, etc..).\n";
 
                     // Send the help message to all if requested.  Otherwise
                     // just DM it to the user that asked.

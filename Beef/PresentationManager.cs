@@ -27,9 +27,11 @@ namespace Beef {
         private List<BeefEntry> _entries = new List<BeefEntry>();
         private Presentation _presentation;
         private IList<Request> _requestList = new List<Request>();
+        private BackupManager _backupManager;
 
-        public PresentationManager(String credentialFile) {
+        public PresentationManager(String credentialFile, String backupLocation) {
             _credentialFile = credentialFile;
+            _backupManager = new BackupManager(backupLocation);
         }
 
         /// <summary>
@@ -234,7 +236,52 @@ namespace Beef {
             // Remove the existing and add the new one
             AddDeleteRequest(existingPlayerEntry);
             AddInsertRequest(existingPlayerEntry, newName);
+
             return SubmitRequests();
+        }
+
+        /// <summary>
+        /// Undoes the last change to the bracket.  Note that you can't undo across shape changes.
+        /// For example, you add a new row to the ladder, you can't undo to a ladder of different size.
+        /// </summary>
+        /// <returns>Returns Success if it was successful or an error code if there was an issue.</returns>
+        public ErrorCode Undo() {
+            // Get the current ladder
+            List<BeefEntry> currentBracket = ReadBracket();
+            if (currentBracket.Count == 0)
+                return ErrorCode.CouldNotReadTheLadder;
+
+            // Get the latest backup
+            String[] backups = _backupManager.GetLatestBackups(1);
+            if (backups == null || backups.Length < 1)
+                return ErrorCode.NothingToUndo;
+
+            List<BeefEntry> backedUpEntries = _backupManager.LoadBackup(backups[0]);
+            if (backedUpEntries.Count != currentBracket.Count)
+                return ErrorCode.LadderDifferentSize;
+
+            // Prepare the changes
+            for (int i = 0; i < backedUpEntries.Count; i++) {
+                AddDeleteRequest(currentBracket[i]);
+                AddInsertRequest(currentBracket[i], backedUpEntries[i].PlayerName);
+            }
+
+            // Do the restore
+            ErrorCode code = SubmitRequests(false);
+            if (!code.Ok())
+                return code;
+
+            // Move the backup
+            try {
+                String backupFileName = Path.GetFileName(backups[0]);
+                String backupPath = Directory.GetParent(backups[0]).FullName;
+                String archivePath = Directory.CreateDirectory(backupPath + "/Archive").FullName;
+                File.Move(backups[0], archivePath + "/" + backupFileName);
+            } catch (Exception e) {
+                return ErrorCode.CouldNotRevertBackupFile;
+            }
+
+            return ErrorCode.Success;
         }
 
         /// <summary>
@@ -286,8 +333,13 @@ namespace Beef {
         /// <summary>
         /// Submits all the queued requests in one batch and indicates if it succeeded or not.
         /// </summary>
+        /// <param name="backup">True to backup before running the commands. False otherwise.</param>
         /// <returns>Returns true if it succeeded, false otherwise.  (TODO: Make it actually return false if it fails)</returns>
-        public ErrorCode SubmitRequests() {
+        public ErrorCode SubmitRequests(bool backup = true) {
+            // Backup first
+            if (backup)
+                _backupManager.Backup(_entries);
+
             var requestListUpdate = new BatchUpdatePresentationRequest();
             requestListUpdate.Requests = _requestList;
 

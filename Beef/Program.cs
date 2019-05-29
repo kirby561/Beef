@@ -1,7 +1,10 @@
-﻿namespace Beef {
+﻿using System;
+
+namespace Beef {
     class Program {
          static void Main(string[] args) {
-            Application app = new Application();
+            String exePath = System.Reflection.Assembly.GetEntryAssembly().Location;
+            Application app = new Application(exePath);
             app.Run().GetAwaiter().GetResult();
         }
     }
