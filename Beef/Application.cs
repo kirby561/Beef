@@ -82,7 +82,14 @@ namespace Beef {
                     return;
                 }
 
-                if (arguments.Length == 4) {
+                if (arguments.Length == 1) {
+                    // Just print the ladder link
+                    code = ErrorCode.Success;
+                    String sc2Beef = "<:sc2:527907155815432202> <:beef:530066963209256973>";
+                    String beefLink = sc2Beef + " **Settle the Beef** " + sc2Beef + "\n";
+                    beefLink += "[Beef Link](" + _config.BeefLadderLink + ")";
+                    MessageChannel(channel, beefLink).GetAwaiter().GetResult();
+                } else if (arguments.Length == 4) {
                     if (arguments[2] == "beat" || arguments[2] == "beats") {
                         if (!IsLeader(author)) {
                             MessageChannel(channel, "You don't have permission to do that.").GetAwaiter().GetResult();
@@ -119,7 +126,7 @@ namespace Beef {
                         if (code.Ok())
                             MessageChannel(channel, "**" + arguments[2] + "** has been renamed to **" + arguments[3] + "**").GetAwaiter().GetResult();
                     }
-                } else if (arguments.Length == 2) {
+                } else if (arguments.Length >= 2) {
                     if (arguments[1] == "bracket" || arguments[1] == "list" || arguments[1] == "ladder") {
                         IsLeader(userInput.Author);
 
@@ -135,7 +142,12 @@ namespace Beef {
                             foreach (BeefEntry entry in entries) {
                                 bracket += entry.PlayerRank + ". " + entry.PlayerName + "\n";
                             }
-                            MessageChannel(channel, bracket).GetAwaiter().GetResult();
+                            // Send the help message to all if requested.  Otherwise
+                            // just DM it to the user that asked.
+                            if (arguments.Length >= 3 && arguments[2] == "all")
+                                MessageChannel(channel, bracket).GetAwaiter().GetResult();
+                            else
+                                MessageUser(userInput.Author, bracket).GetAwaiter().GetResult();
                         }
                     } else if (arguments[1].Equals("undo")) {
                         if (!IsLeader(author)) {
@@ -154,37 +166,35 @@ namespace Beef {
                         }
 
                         code = ErrorCode.Success;
+                    } else if (arguments[1] == "help") {
+                        code = ErrorCode.Success;
+
+                        String help = "";
+                        help += "The Beef ladder is maintained on Google Docs as a Slide presentation.  This bot makes it more convenient to update it.  Each Beef command is prefixed with \"%beef%\".\n";
+                        help += "The following commands are available:\n";
+                        help += "\t **%beef%** - Prints the link to the ladder.\n";
+                        help += "\t **%beef% help [all]** - Prints this message to the user who typed it or the channel if [all] is specified.\n";
+                        help += "\t **%beef% list [all]**. - Prints out the current ranks of everyone in the ladder to the user who typed it or the current channel if [all] is specified.\n";
+                        help += "\t **%beef% ladder [all]**. - Same as %beef% list\n";
+                        help += "\t **%beef% bracket [all]**. - Same as %beef% list\n";
+                        help += "\nThe following commands are admin only:\n";
+                        help += "\t **%beef% _<WinningPlayerOrRank>_ beat _<LosingPlayerOrRank>_** - Updates the ladder such that the winning player is placed in the losing player's position and everyone inbetween is shuffled to the right by one.\n";
+                        help += "\t\t\t You can specifiy a rank or a name for each player.  Names are case sensitive.  Examples:\n";
+                        help += "\t\t\t\t **%beef% 4 beat 3**.  --  Will swap the player in rank 4 with player in rank 3.\n";
+                        help += "\t\t\t\t **%beef% 4 beat 1**.  --  Will put the rank 4 player in rank 1, the rank 1 player in rank 2, and the rank 3 player in rank 4\n";
+                        help += "\t\t\t\t **%beef% bum beat GamerRichy**.  --  Will put bum in rank 1, GamerRichy in rank 2, and shuffle everyone else accordingly.\n";
+                        help += "\t **%beef% _<WinningPlayerOrRank>_ beats _<LosingPlayerOrRank>_**. - Same as %beef% X beat Y (It accepts beats and beat)\n";
+                        help += "\t **%beef% rename _<OldPlayerName>_ _<NewPlayerName>_**. - Renames a player on the ladder to the new name.\n";
+                        help += "\t **%beef% undo**. - Undoes the last change to the ladder (renames, wins, etc..).\n";
+                        help = help.Replace("%beef%", _botPrefix + "beef");
+
+                        // Send the help message to all if requested.  Otherwise
+                        // just DM it to the user that asked.
+                        if (arguments.Length >= 3 && arguments[2] == "all")
+                            MessageChannel(channel, help).GetAwaiter().GetResult();
+                        else
+                            MessageUser(userInput.Author, help).GetAwaiter().GetResult();
                     }
-                }
-
-                if (arguments.Length >= 2 && arguments[1] == "help") {
-                    code = ErrorCode.Success;
-
-                    String help = "";
-                    help += "The Beef ladder is maintained on Google Docs as a Slide presentation.  This bot makes it more convenient to update it.  Each Beef command is prefixed with \"%beef%\".\n";
-                    help += "The following commands are available:\n";
-                    help += "\t **%beef% help** - DMs this message to the user who typed it\n";
-                    help += "\t **%beef% help all** - Sends this message to the current channel\n";
-                    help += "\t **%beef% list**. - Prints out the current ranks of everyone in the ladder.\n";
-                    help += "\t **%beef% ladder**. - Same as %beef% list\n";
-                    help += "\t **%beef% bracket**. - Same as %beef% list\n";
-                    help += "\nThe following commands are admin only:\n";
-                    help += "\t **%beef% _<WinningPlayerOrRank>_ beat _<LosingPlayerOrRank>_** - Updates the ladder such that the winning player is placed in the losing player's position and everyone inbetween is shuffled to the right by one.\n";
-                    help += "\t\t\t You can specifiy a rank or a name for each player.  Names are case sensitive.  Examples:\n";
-                    help += "\t\t\t\t **%beef% 4 beat 3**.  --  Will swap the player in rank 4 with player in rank 3.\n";
-                    help += "\t\t\t\t **%beef% 4 beat 1**.  --  Will put the rank 4 player in rank 1, the rank 1 player in rank 2, and the rank 3 player in rank 4\n";
-                    help += "\t\t\t\t **%beef% bum beat GamerRichy**.  --  Will put bum in rank 1, GamerRichy in rank 2, and shuffle everyone else accordingly.\n";
-                    help += "\t **%beef% _<WinningPlayerOrRank>_ beats _<LosingPlayerOrRank>_**. - Same as %beef% X beat Y (It accepts beats and beat)\n";
-                    help += "\t **%beef% rename _<OldPlayerName>_ _<NewPlayerName>_**. - Renames a player on the ladder to the new name.\n";
-                    help += "\t **%beef% undo**. - Undoes the last change to the ladder (renames, wins, etc..).\n";
-                    help = help.Replace("%beef%", _botPrefix + "beef");
-
-                    // Send the help message to all if requested.  Otherwise
-                    // just DM it to the user that asked.
-                    if (arguments.Length >= 3 && arguments[2] == "all")
-                        MessageChannel(channel, help).GetAwaiter().GetResult();
-                    else
-                        MessageUser(userInput.Author, help).GetAwaiter().GetResult();
                 }
 
                 if (!code.Ok()) {

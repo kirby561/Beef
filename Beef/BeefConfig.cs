@@ -21,6 +21,7 @@ namespace Beef {
         public String GoogleApiPresentationId { get; set; } = "";
         public String GoogleApiCredentialFile { get; set; } = "credentials.json";
         public String GoogleApiApplicationName { get; set; } = "";
+        public String BeefLadderLink { get; set; } = ""; // This is separate from the presentation ID because you need the readonly link.
 
         /// <summary>
         /// Creates a ReaderConfig with default settings.
