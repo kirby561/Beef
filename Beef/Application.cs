@@ -7,15 +7,15 @@ using System.Threading.Tasks;
 
 namespace Beef {
     class Application {
-        private String m_BotIndicator = ".";
+        private BeefConfig _config;
+        private String _botPrefix;
         private PresentationManager _manager;
-        private Boolean _shouldRun = true;
-        private String[] _leaderRoles = new String[] { "Battlecruiser", "Executor (MOD)", "Ghosts (Leaders)" };
+        private String[] _leaderRoles;
         private String _exePath;
 
-    private DiscordSocketClient _discordClient;
+        private DiscordSocketClient _discordClient;
 
-        public Application(String exePath) {
+        public Application(BeefConfig config, String exePath) {
             _exePath = Directory.GetParent(exePath).FullName;
             _discordClient = new DiscordSocketClient();
 
@@ -23,22 +23,21 @@ namespace Beef {
             _discordClient.Ready += ReadyAsync;
             _discordClient.MessageReceived += MessageReceivedAsync;
             _discordClient.Disconnected += DisconnectedAsync;
+
+            _config = config;
+            _botPrefix = config.BotPrefix;
+            _leaderRoles = config.LeaderRoles;
         }
 
         public async Task Run() {
-            // TODO: 
-            //  1) Auto bracket backup
-            //  2) Bracket restore from backup
-            //  3) Undo/Redo
-            //  4) Specify bracket in config file.  Actually an app-wide config file would be best
-            _manager = new PresentationManager("credentials.json", _exePath + "/Backups");
+            _manager = new PresentationManager(_config, _exePath + "/Backups");
 
-            // Tokens should be considered secret data, and never hard-coded.
-            String token = Environment.GetEnvironmentVariable("token");
+            // Log in to discord
+            String token = _config.DiscordBotToken;
             await _discordClient.LoginAsync(TokenType.Bot, token);
             await _discordClient.StartAsync();
 
-            // Block the program until it is closed.
+            // Block until someone tells us to quit
             await Task.Delay(-1);
         }
 
@@ -65,7 +64,7 @@ namespace Beef {
 
         private void HandleCommand(SocketMessage userInput) {
             // Make sure it starts with ".beef" as an optimization
-            if (String.IsNullOrEmpty(userInput.Content) || !userInput.Content.StartsWith(".beef"))
+            if (String.IsNullOrEmpty(userInput.Content) || !userInput.Content.StartsWith(_botPrefix + "beef"))
                 return;
 
             String[] arguments = ParseArguments(userInput.Content);
@@ -73,7 +72,7 @@ namespace Beef {
                 return;
             }
 
-            if (arguments[0] == ".beef") {
+            if (arguments[0] == _botPrefix + "beef") {
                 SocketUser author = userInput.Author;
                 ISocketMessageChannel channel = userInput.Channel;
                 ErrorCode code = ErrorCode.CommandNotRecognized;
@@ -155,7 +154,6 @@ namespace Beef {
                         }
 
                         code = ErrorCode.Success;
-                        _shouldRun = false;
                     }
                 }
 
@@ -163,22 +161,23 @@ namespace Beef {
                     code = ErrorCode.Success;
 
                     String help = "";
-                    help += "The Beef ladder is maintained on Google Docs as a Slide presentation.  This bot makes it more convenient to update it.  Each Beef command is prefixed with \".beef\".\n";
+                    help += "The Beef ladder is maintained on Google Docs as a Slide presentation.  This bot makes it more convenient to update it.  Each Beef command is prefixed with \"%beef%\".\n";
                     help += "The following commands are available:\n";
-                    help += "\t **.beef help** - DMs this message to the user who typed it\n";
-                    help += "\t **.beef help all** - Sends this message to the current channel\n";
-                    help += "\t **.beef list**. - Prints out the current ranks of everyone in the ladder.\n";
-                    help += "\t **.beef ladder**. - Same as .beef list\n";
-                    help += "\t **.beef bracket**. - Same as .beef list\n";
+                    help += "\t **%beef% help** - DMs this message to the user who typed it\n";
+                    help += "\t **%beef% help all** - Sends this message to the current channel\n";
+                    help += "\t **%beef% list**. - Prints out the current ranks of everyone in the ladder.\n";
+                    help += "\t **%beef% ladder**. - Same as %beef% list\n";
+                    help += "\t **%beef% bracket**. - Same as %beef% list\n";
                     help += "\nThe following commands are admin only:\n";
-                    help += "\t **.beef _<WinningPlayerOrRank>_ beat _<LosingPlayerOrRank>_** - Updates the ladder such that the winning player is placed in the losing player's position and everyone inbetween is shuffled to the right by one.\n";
+                    help += "\t **%beef% _<WinningPlayerOrRank>_ beat _<LosingPlayerOrRank>_** - Updates the ladder such that the winning player is placed in the losing player's position and everyone inbetween is shuffled to the right by one.\n";
                     help += "\t\t\t You can specifiy a rank or a name for each player.  Names are case sensitive.  Examples:\n";
-                    help += "\t\t\t\t **.beef 4 beat 3**.  --  Will swap the player in rank 4 with player in rank 3.\n";
-                    help += "\t\t\t\t **.beef 4 beat 1**.  --  Will put the rank 4 player in rank 1, the rank 1 player in rank 2, and the rank 3 player in rank 4\n";
-                    help += "\t\t\t\t **.beef bum beat GamerRichy**.  --  Will put bum in rank 1, GamerRichy in rank 2, and shuffle everyone else accordingly.\n";
-                    help += "\t **.beef _<WinningPlayerOrRank>_ beats _<LosingPlayerOrRank>_**. - Same as .beef X beat Y (It accepts beats and beat)\n";
-                    help += "\t **.beef rename _<OldPlayerName>_ _<NewPlayerName>_**. - Renames a player on the ladder to the new name.\n";
-                    help += "\t **.beef undo**. - Undoes the last change to the ladder (renames, wins, etc..).\n";
+                    help += "\t\t\t\t **%beef% 4 beat 3**.  --  Will swap the player in rank 4 with player in rank 3.\n";
+                    help += "\t\t\t\t **%beef% 4 beat 1**.  --  Will put the rank 4 player in rank 1, the rank 1 player in rank 2, and the rank 3 player in rank 4\n";
+                    help += "\t\t\t\t **%beef% bum beat GamerRichy**.  --  Will put bum in rank 1, GamerRichy in rank 2, and shuffle everyone else accordingly.\n";
+                    help += "\t **%beef% _<WinningPlayerOrRank>_ beats _<LosingPlayerOrRank>_**. - Same as %beef% X beat Y (It accepts beats and beat)\n";
+                    help += "\t **%beef% rename _<OldPlayerName>_ _<NewPlayerName>_**. - Renames a player on the ladder to the new name.\n";
+                    help += "\t **%beef% undo**. - Undoes the last change to the ladder (renames, wins, etc..).\n";
+                    help = help.Replace("%beef%", _botPrefix + "beef");
 
                     // Send the help message to all if requested.  Otherwise
                     // just DM it to the user that asked.
@@ -191,7 +190,7 @@ namespace Beef {
                 if (!code.Ok()) {
                     MessageErrorToChannel(channel, code);
                 }
-            } // end .beef
+            } // end beef
         }
 
         private Task LogAsync(LogMessage log) {
@@ -199,24 +198,32 @@ namespace Beef {
             return Task.CompletedTask;
         }
 
-        // The Ready event indicates that the client has opened a
-        // connection and it is now safe to access the cache.
+        /// <summary>
+        /// Called when the bot is ready.
+        /// </summary>
+        /// <returns>An async task.</returns>
         private Task ReadyAsync() {
             Console.WriteLine($"{_discordClient.CurrentUser} is connected!");
 
             return Task.CompletedTask;
         }
 
-        // The Ready event indicates that the client has opened a
-        // connection and it is now safe to access the cache.
+        /// <summary>
+        /// Called when the bot disconnected.
+        /// </summary>
+        /// <param name="ex">The exception that happened</param>
+        /// <returns>An async task.</returns>
         private Task DisconnectedAsync(Exception ex) {
             Console.WriteLine($"{ex.Message} is disconnected!");
 
             return Task.CompletedTask;
         }
 
-        // This is not the recommended way to write a bot - consider
-        // reading over the Commands Framework sample.
+        /// <summary>
+        /// Called when a message is received from discord.
+        /// </summary>
+        /// <param name="message">The message that was sent.</param>
+        /// <returns>An async task.</returns>
         private async Task MessageReceivedAsync(SocketMessage message) {
             // The bot should never respond to itself.
             if (message.Author.Id == _discordClient.CurrentUser.Id)

@@ -73,7 +73,10 @@ namespace Beef {
                 files.Add(filePath);
             }
 
-            files.Sort();
+            files.Sort(delegate (String str1, String str2) {
+                // Sort most recent to least recent
+                return str2.CompareTo(str1);
+            });
 
             int numBackups = Math.Min(n, files.Count);
             String[] latestBackups = new String[numBackups];

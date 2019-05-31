@@ -1,0 +1,9 @@
+{
+	"Version": 0,
+	"DiscordBotToken": "<YourDiscordBotTokenHere>"
+	"BotPrefix": ".",
+	"LeaderRoles": [ "ExampleRole1", "ExampleRole2" ],
+	"GoogleApiPresentationId": "AAAAAAAAAAAAA_BBBBBBBBBBBBBBBBBBBBBBBBBB",
+	"GoogleApiCredentialFile": "credentials.json",
+	"GoogleApiApplicationName": "<YourDiscordAppNameHere>"
+}

@@ -19,9 +19,9 @@ namespace Beef {
     /// </summary>
     class PresentationManager {
         private String[] _scopes = { SlidesService.Scope.Presentations };
-        private String _applicationName = "TeamGosuBeefBot";
+        private String _applicationName;
         private String _credentialFile;
-        private String _presentationId = "1IEoWpZmpTAxx_HdAHYiEnpAX1cSfT-TqZYNwwIAxeTA";
+        private String _presentationId;
 
         private SlidesService _service;
         private List<BeefEntry> _entries = new List<BeefEntry>();
@@ -29,9 +29,11 @@ namespace Beef {
         private IList<Request> _requestList = new List<Request>();
         private BackupManager _backupManager;
 
-        public PresentationManager(String credentialFile, String backupLocation) {
-            _credentialFile = credentialFile;
+        public PresentationManager(BeefConfig config, String backupLocation) {
+            _credentialFile = config.GoogleApiCredentialFile;
             _backupManager = new BackupManager(backupLocation);
+            _presentationId = config.GoogleApiPresentationId;
+            _applicationName = config.GoogleApiApplicationName;
         }
 
         /// <summary>
@@ -41,7 +43,7 @@ namespace Beef {
         public ErrorCode Authenticate() {
             UserCredential credential;
 
-            using (var stream = new FileStream("credentials.json", FileMode.Open, FileAccess.Read)) {
+            using (var stream = new FileStream(_credentialFile, FileMode.Open, FileAccess.Read)) {
                 // The file token.json stores the user's access and refresh tokens, and is created
                 // automatically when the authorization flow completes for the first time.
                 string credPath = "token.json";
