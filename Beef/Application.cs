@@ -87,7 +87,7 @@ namespace Beef {
                     code = ErrorCode.Success;
                     String sc2Beef = "<:sc2:527907155815432202> <:beef:530066963209256973>";
                     String beefLink = sc2Beef + " **Settle the Beef** " + sc2Beef + "\n";
-                    beefLink += "[Beef Link](" + _config.BeefLadderLink + ")";
+                    beefLink += _config.BeefLadderLink;
                     MessageChannel(channel, beefLink).GetAwaiter().GetResult();
                 } else if (arguments.Length == 4) {
                     if (arguments[2] == "beat" || arguments[2] == "beats") {
