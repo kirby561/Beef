@@ -63,6 +63,12 @@ namespace Beef {
         }
 
         private void HandleCommand(SocketMessage userInput) {
+            // This is for Cloud...
+            if (userInput.Content.StartsWith("I love you Beef bot!", StringComparison.CurrentCultureIgnoreCase)) {
+                MessageChannel(userInput.Channel, "I love you too babe.").GetAwaiter().GetResult();
+                return;
+            }
+
             // Make sure it starts with ".beef" as an optimization
             if (String.IsNullOrEmpty(userInput.Content) || !userInput.Content.StartsWith(_botPrefix + "beef"))
                 return;
