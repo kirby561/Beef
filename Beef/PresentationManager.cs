@@ -235,9 +235,118 @@ namespace Beef {
             if (existingPlayerEntry == null)
                 return ErrorCode.NoExistingPlayerByThatName; // Player not found
 
+            return RenamePlayer(existingPlayerEntry, newName);
+        }
+
+        /// <summary>
+        /// Renames the player at the given index with the given name.
+        /// </summary>
+        /// <param name="index">The index of the player (the rank - 1).</param>
+        /// <param name="newName">The new name for the player.</param>
+        /// <param name="existingPlayer">Set to the existing player if there wasn't an error.  Set to null if there was an error.</param>
+        /// <returns>Returns Success or an error code for what went wrong.</returns>
+        public ErrorCode RenamePlayer(int index, String newName, out BeefEntry existingPlayer) {
+            existingPlayer = null;
+            List<BeefEntry> entries = ReadBracket();
+            if (entries.Count == 0)
+                return ErrorCode.CouldNotReadTheLadder; // There was an error reading the bracket.
+
+            if (index <= 0 || index >= entries.Count) {
+                return ErrorCode.RankNotOnLadder;
+            }
+
+            BeefEntry playerToRename = entries[index];
+            ErrorCode result = RenamePlayer(playerToRename, newName);
+     
+            if (result.Ok())
+                existingPlayer = playerToRename;
+
+            return result;
+        }
+
+        /// <summary>
+        /// Renames the given entry to the new name.
+        /// </summary>
+        /// <param name="existingEntry">The existing entry in the ladder.</param>
+        /// <param name="newName">The new name to give the player</param>
+        /// <returns>Returns Success or what went wrong if it failed.</returns>
+        private ErrorCode RenamePlayer(BeefEntry existingEntry, String newName) {
             // Remove the existing and add the new one
-            AddDeleteRequest(existingPlayerEntry);
-            AddInsertRequest(existingPlayerEntry, newName);
+            AddDeleteRequest(existingEntry);
+            AddInsertRequest(existingEntry, newName);
+
+            return SubmitRequests();
+        }
+
+        /// <summary>
+        /// Removes the player from the ladder with the given name and shuffles everyone else down.
+        /// </summary>
+        /// <param name="name">The name of the player to remove.</param>
+        /// <returns>Returns Success if it was successful or the error code if there was an issue.</returns>
+        public ErrorCode RemovePlayer(String name) {
+            List<BeefEntry> entries = ReadBracket();
+            if (entries.Count == 0)
+                return ErrorCode.CouldNotReadTheLadder; // There was an error reading the bracket.
+
+            // Get the object ID for this player
+            BeefEntry playerToRemove = null;
+            for (int i = 0; i < entries.Count; i++) {
+                BeefEntry entry = entries[i];
+                if (name.Equals(entry.PlayerName)) {
+                    playerToRemove = entry;
+                    break;
+                }
+            }
+
+            if (playerToRemove == null) {
+                return ErrorCode.NoExistingPlayerByThatName;
+            }
+
+            return RemovePlayer(entries, playerToRemove);
+        }
+
+        /// <summary>
+        /// Removes the player at the given index.
+        /// </summary>
+        /// <param name="index">The index of the player to remove.  Note this is the INDEX not the RANK.</param>
+        /// <param name="playerToRemove">This is set to the player being removed if successful and null otherwise.</param>
+        /// <returns>Returns Success if it was successful or the error code if there was an issue.</returns>
+        public ErrorCode RemovePlayer(int index, out BeefEntry playerToRemove) {
+            playerToRemove = null;
+            List<BeefEntry> entries = ReadBracket();
+            if (entries.Count == 0)
+                return ErrorCode.CouldNotReadTheLadder; // There was an error reading the bracket.
+
+            if (index <= 0 || index >= entries.Count) {
+                return ErrorCode.RankNotOnLadder;
+            }
+
+            playerToRemove = entries[index];
+            ErrorCode result = RemovePlayer(entries, playerToRemove);
+            if (result.Ok()) {
+                playerToRemove = entries[index];
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Builds the list of requests to remove the given BeefEntry (player) and submits it.
+        /// </summary>
+        /// <param name="entries">The list of entries</param>
+        /// <param name="playerToRemove">The player to remove</param>
+        /// <returns>Returns Success if it worked or the error code if it didn't.</returns>
+        private ErrorCode RemovePlayer(List<BeefEntry> entries, BeefEntry playerToRemove) {
+            // Add a delete request for each player and insert the player one rank above
+            // so it shuffles everyone up the bracket leaving the last one black.
+            for (int index = playerToRemove.PlayerRank - 1; index < entries.Count; index++) {
+                AddDeleteRequest(entries[index]);
+
+                if (index + 1 < entries.Count) {
+                    AddInsertRequest(entries[index], entries[index + 1].PlayerName);
+                } else {
+                    AddInsertRequest(entries[index], "");
+                }
+            }
 
             return SubmitRequests();
         }

@@ -22,8 +22,11 @@ namespace Beef {
         YouCantBeatYourself,
         LoserIsNotOnTheLadder,
 
-        // Renaming
+        // Renaming/Removing
         NoExistingPlayerByThatName,
+
+        // Removing
+        RankNotOnLadder,
 
         // Undo
         NothingToUndo,
@@ -63,6 +66,8 @@ namespace Beef {
                     return "That loser isn't even on the ladder.  Is this the level of proficiency you have in other things in life too?";
                 case ErrorCode.NoExistingPlayerByThatName:
                     return "How can I rename a player that doesn't exist?  Seriously, check the ladder.  That name's not on it.";
+                case ErrorCode.RankNotOnLadder:
+                    return "Someone can't read numbers.  Pick a rank that actually is on the ladder.";
                 case ErrorCode.NothingToUndo:
                     return "You haven't done anything yet wtf!?";
                 case ErrorCode.LadderDifferentSize:

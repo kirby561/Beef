@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 namespace Beef {
     class Application {
+        private readonly String _version = "1.1";
         private BeefConfig _config;
         private String _botPrefix;
         private PresentationManager _manager;
@@ -128,12 +129,61 @@ namespace Beef {
                             return;
                         }
 
-                        code = _manager.RenamePlayer(arguments[2], arguments[3]);
+                        String playerOrRankToRename = arguments[2];
+                        String newName = arguments[3];
+                        int rank;
+                        if (!int.TryParse(playerOrRankToRename, out rank)) rank = -1;
+
+                        if (rank != -1) {
+                            BeefEntry existingPlayer;
+                            code = _manager.RenamePlayer(rank - 1, newName, out existingPlayer);
+
+                            if (existingPlayer != null) {
+                                playerOrRankToRename = existingPlayer.PlayerName;
+                                if (String.IsNullOrEmpty(playerOrRankToRename)) {
+                                    playerOrRankToRename = "Rank " + rank;
+                                }
+                            }
+                        } else {
+                            code = _manager.RenamePlayer(playerOrRankToRename, newName);
+                        }
+
                         if (code.Ok())
-                            MessageChannel(channel, "**" + arguments[2] + "** has been renamed to **" + arguments[3] + "**").GetAwaiter().GetResult();
+                            MessageChannel(channel, "**" + playerOrRankToRename + "** has been renamed to **" + newName + "**").GetAwaiter().GetResult();
                     }
                 } else if (arguments.Length >= 2) {
-                    if (arguments[1] == "bracket" || arguments[1] == "list" || arguments[1] == "ladder") {
+                    if (arguments[1] == "version" && arguments.Length == 2) {
+                        MessageChannel(channel, "BeefBot version " + _version).GetAwaiter().GetResult();
+                        return;
+                    } else if (arguments[1] == "remove") {
+                        if (!IsLeader(author)) {
+                            MessageChannel(channel, "You don't have permission to do that.").GetAwaiter().GetResult();
+                            return;
+                        }
+
+                        if (arguments.Length != 3) {
+                            MessageChannel(channel, "Read the instructions for once in your life, that's not how you use this command.").GetAwaiter().GetResult();
+                            return;
+                        }
+                    
+                        String playerToRemove = arguments[2];
+                        int rank;
+                        if (!int.TryParse(playerToRemove, out rank)) rank = -1;
+                    
+                        if (rank != -1) {
+                            BeefEntry removedPlayerEntry;
+                            code = _manager.RemovePlayer(rank - 1, out removedPlayerEntry);
+                    
+                            if (code.Ok())
+                                playerToRemove = removedPlayerEntry.PlayerName;
+                        } else {
+                            code = _manager.RemovePlayer(playerToRemove);
+                        }
+                    
+                        if (code.Ok()) {
+                            MessageChannel(channel, "Removed " + playerToRemove + " from the ladder.").GetAwaiter().GetResult();
+                        }
+                    } else if (arguments[1] == "bracket" || arguments[1] == "list" || arguments[1] == "ladder") {
                         IsLeader(userInput.Author);
 
                         List<BeefEntry> entries = _manager.ReadBracket();
@@ -177,6 +227,7 @@ namespace Beef {
 
                         String help = "";
                         help += "The Beef ladder is maintained on Google Docs as a Slide presentation.  This bot makes it more convenient to update it.  Each Beef command is prefixed with \"%beef%\".\n";
+                        help += "Note, commands that have parameters in them surrounded in [] means that parameter is optional.  As an example \"all\" is a common suffix you can add to make a command print to the chat instead of whispering the response to you.\n";
                         help += "The following commands are available:\n";
                         help += "\t **%beef%** - Prints the link to the ladder.\n";
                         help += "\t **%beef% help [all]** - Prints this message to the user who typed it or the channel if [all] is specified.\n";
@@ -191,7 +242,9 @@ namespace Beef {
                         help += "\t\t\t\t **%beef% bum beat GamerRichy**.  --  Will put bum in rank 1, GamerRichy in rank 2, and shuffle everyone else accordingly.\n";
                         help += "\t **%beef% _<WinningPlayerOrRank>_ beats _<LosingPlayerOrRank>_**. - Same as %beef% X beat Y (It accepts beats and beat)\n";
                         help += "\t **%beef% rename _<OldPlayerName>_ _<NewPlayerName>_**. - Renames a player on the ladder to the new name.\n";
+                        help += "\t **%beef% remove _<PlayerOrRank>_**. - Removes the given player or rank from the ladder..\n";
                         help += "\t **%beef% undo**. - Undoes the last change to the ladder (renames, wins, etc..).\n";
+                        help += "\t **%beef% version**. - Prints the version of BeefBot\n";
                         help = help.Replace("%beef%", _botPrefix + "beef");
 
                         // Send the help message to all if requested.  Otherwise
@@ -204,7 +257,7 @@ namespace Beef {
                 }
 
                 if (!code.Ok()) {
-                    MessageErrorToChannel(channel, code);
+                    MessageErrorToChannel(channel, code).GetAwaiter().GetResult();
                 }
             } // end beef
         }
