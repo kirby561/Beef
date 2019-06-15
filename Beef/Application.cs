@@ -181,7 +181,7 @@ namespace Beef {
                         }
                     
                         if (code.Ok()) {
-                            MessageChannel(channel, "Removed " + playerToRemove + " from the ladder.").GetAwaiter().GetResult();
+                            MessageChannel(channel, "Removed **" + playerToRemove + "** from the ladder.").GetAwaiter().GetResult();
                         }
                     } else if (arguments[1] == "bracket" || arguments[1] == "list" || arguments[1] == "ladder") {
                         IsLeader(userInput.Author);
