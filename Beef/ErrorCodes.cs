@@ -35,6 +35,17 @@ namespace Beef {
 
         // Commands
         CommandNotRecognized,
+
+        // Registration
+        DiscordNameExists,
+        BeefNameAlreadyExists,
+        BeefNameDoesNotExist,
+        BeefNameContainsInvalidCharacters,
+        BeefFileAlreadyExists, // This shouldnt happen if there isn't also a name collision.
+        BeefFileCouldNotSerialize, // What??
+        BeefFileCouldNotWriteFile,
+        CouldNotDeleteFile,
+
     }
 
     public static class ErrorCodeMethods {
@@ -76,6 +87,22 @@ namespace Beef {
                     return "Not a command bro.  Try \"**.beef help**\" so you have some clue what you're doing next time.";
                 case ErrorCode.CouldNotRevertBackupFile:
                     return "There was a problem moving the undone backup file to the archive.  This indicates a problem with the file system.";
+                case ErrorCode.DiscordNameExists:
+                    return "That discord name is already registered.";
+                case ErrorCode.BeefNameAlreadyExists:
+                    return "That beef name is already registered.";
+                case ErrorCode.BeefFileAlreadyExists:
+                    return "The beef file already exists!";
+                case ErrorCode.BeefNameDoesNotExist:
+                    return "That beef name does not exist.";
+                case ErrorCode.BeefNameContainsInvalidCharacters:
+                    return "That beef name contains invalid characters!";
+                case ErrorCode.BeefFileCouldNotSerialize:
+                    return "I couldn't serialize the beef file.";
+                case ErrorCode.BeefFileCouldNotWriteFile:
+                    return "I couldn't write the beef file for some reason!";
+                case ErrorCode.CouldNotDeleteFile:
+                    return "I couldn't delete the file for some reason!";
                 default:
                     return "Well I don't know what happened but it can't be good.";
             }

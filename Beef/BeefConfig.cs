@@ -10,7 +10,7 @@ namespace Beef {
         public static int ReaderConfigVersion = 0;  
 
         // Version
-        public int Version { get; set; } = 0;          // This identifies the version of the config file.
+        public int Version { get; set; } = ReaderConfigVersion;          // This identifies the version of the config file.
 
         // Discord stuff
         public String DiscordBotToken { get; set; } = "";
@@ -30,7 +30,6 @@ namespace Beef {
         public static BeefConfig CreateDefault() {
             // Fill out the default settings and version
             BeefConfig config = new BeefConfig();
-            config.Version = ReaderConfigVersion;
             
             // The credentials are left blank and need to be filled out after
             return config;

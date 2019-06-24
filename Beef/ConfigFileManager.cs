@@ -60,12 +60,7 @@ namespace Beef {
                 return false;
             }
 
-            // Do a poor mans prettify since JavaScriptSerializer doesn't support
-            //    formatting the output.  This could be improved by using an actual library like JSON.net
-            configString = configString.Insert(configString.IndexOf("{") + 1, Environment.NewLine + "\t");
-            configString = configString.Insert(configString.LastIndexOf("}"), Environment.NewLine);
-            configString = configString.Replace("\":", "\": ");
-            configString = configString.Replace(",\"", "," + Environment.NewLine + "\t\"");
+            configString = JsonUtil.PoorMansJsonFormat(configString);
 
             // Write it to a file
             try {

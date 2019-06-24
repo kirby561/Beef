@@ -7,10 +7,11 @@ using System.Threading.Tasks;
 
 namespace Beef {
     class Application {
-        private readonly String _version = "1.1";
+        private readonly String _version = "1.2";
         private BeefConfig _config;
         private String _botPrefix;
-        private PresentationManager _manager;
+        private BeefUserConfigManager _userManager;
+        private PresentationManager _presentationManager;
         private String[] _leaderRoles;
         private String _exePath;
 
@@ -31,7 +32,8 @@ namespace Beef {
         }
 
         public async Task Run() {
-            _manager = new PresentationManager(_config, _exePath + "/Backups");
+            _presentationManager = new PresentationManager(_config, _exePath + "/Backups");
+            _userManager = new BeefUserConfigManager(_exePath + "Users");
 
             // Log in to discord
             String token = _config.DiscordBotToken;
@@ -84,7 +86,7 @@ namespace Beef {
                 ISocketMessageChannel channel = userInput.Channel;
                 ErrorCode code = ErrorCode.CommandNotRecognized;
 
-                if (!_manager.Authenticate().Ok()) {
+                if (!_presentationManager.Authenticate().Ok()) {
                     Console.WriteLine("Could not authenticate.");
                     return;
                 }
@@ -96,6 +98,122 @@ namespace Beef {
                     String beefLink = sc2Beef + " **Settle the Beef** " + sc2Beef + "\n";
                     beefLink += _config.BeefLadderLink;
                     MessageChannel(channel, beefLink).GetAwaiter().GetResult();
+                } else if (arguments[1] == "register") {
+                    if (!IsLeader(author)) {
+                        MessageChannel(channel, "You don't have permission to do that.").GetAwaiter().GetResult();
+                        return;
+                    }
+
+                    if (arguments.Length == 4) {
+                        String beefName = arguments[2];
+                        String discordName = arguments[3];
+
+                        // Make sure the names are valid
+                        if (beefName.Contains("#") || !discordName.Contains("#")) {
+                            MessageChannel(channel, "The first name should be the beef name, the second name should be the Discord ID.  Try **" + _botPrefix + "beef help**").GetAwaiter().GetResult();
+                            return;
+                        }
+
+                        // Make sure it doesn't exist
+                        BeefUserConfig existingUser = _userManager.GetUserByName(beefName);
+                        if (existingUser != null) {
+                            MessageChannel(channel, "That beef name is already registered with the discord name **" + existingUser.DiscordName + "**.").GetAwaiter().GetResult();
+                            return;
+                        }
+
+                        existingUser = _userManager.GetUserByDiscordId(discordName);
+                        if (existingUser != null) {
+                            MessageChannel(channel, "That discord name is already registered with the beef name **" + existingUser.BeefName + "**.").GetAwaiter().GetResult();
+                            return;
+                        }
+
+                        // Ok everything seems legit
+                        code = _userManager.RegisterUser(beefName, discordName);
+
+                        if (code.Ok())
+                            MessageChannel(channel, "Registered **" + beefName + "** with discord name **" + discordName + "**.").GetAwaiter().GetResult();
+                    } else {
+                        MessageChannel(channel, "Uh, that's not how this command is used.  No wonder people talk about you when you're not around.  Try **" + _botPrefix + "beef help**").GetAwaiter().GetResult();
+                        return;
+                    }
+                } else if (arguments[1] == "unregister") {
+                    if (!IsLeader(author)) {
+                        MessageChannel(channel, "You don't have permission to do that.").GetAwaiter().GetResult();
+                        return;
+                    }
+
+                    if (arguments.Length == 3) {
+                        String beefName = arguments[2];
+
+                        // Make sure it doesn't exist
+                        BeefUserConfig existingUser = _userManager.GetUserByName(beefName);
+                        if (existingUser == null) {
+                            MessageChannel(channel, "**" + beefName + "** is not registered.").GetAwaiter().GetResult();
+                            return;
+                        }
+
+                        code = _userManager.DeleteUser(beefName);
+
+                        if (code.Ok())
+                            MessageChannel(channel, "Unregistered **" + beefName + "** (Discord name **" + existingUser.DiscordName + "**).").GetAwaiter().GetResult();
+                    } else {
+                        MessageChannel(channel, "Uh, that's not how this command is used.  No wonder people talk about you when you're not around.  Try **" + _botPrefix + "beef help**").GetAwaiter().GetResult();
+                        return;
+                    }
+                } else if (arguments[1] == "users") {
+                    bool sendToAll = arguments.Length == 3 && arguments[2] == "all";
+                    List<BeefUserConfig> users = _userManager.GetUsers();
+                    String userList;
+
+                    if (users.Count > 0) {
+                        userList = "";
+                        foreach (BeefUserConfig config in users) {
+                            userList += config.BeefName + " -> " + config.DiscordName + "\n";
+                        }
+                        userList.Remove(userList.Length - 1, 1); // Remove the last "\n"
+                    } else {
+                        userList = "There are no registered users.";
+                    }
+
+                    if (sendToAll) {
+                        if (!IsLeader(author)) {
+                            MessageChannel(channel, "You don't have permission to do that.").GetAwaiter().GetResult();
+                            return;
+                        }
+
+                        MessageChannel(channel, userList).GetAwaiter().GetResult();
+                    } else {
+                        MessageUser(userInput.Author, userList).GetAwaiter().GetResult();
+                    }
+
+                    code = ErrorCode.Success;
+                } else if (arguments[1] == "challenge") {
+                    if (arguments.Length != 3) {
+                        MessageChannel(channel, "You need to specify who you want to challenge.  You'd think that would have been obvious...").GetAwaiter().GetResult();
+                        return;
+                    }
+
+                    BeefUserConfig challengersConfig = _userManager.GetUserByDiscordId(userInput.Author.Username + "#" + userInput.Author.Discriminator);
+                    if (challengersConfig == null) {
+                        MessageChannel(channel, "You aren't registered yet.  Get an admin to register your discord ID to your beef ladder name with the register command.").GetAwaiter().GetResult();
+                        return;
+                    }
+
+                    BeefUserConfig challengedConfig = null;
+                    String challengedDiscordOrBeefName = arguments[2];
+                    if (challengedDiscordOrBeefName.Contains("#")) {
+                        challengedConfig = _userManager.GetUserByDiscordId(challengedDiscordOrBeefName);
+                    } else {
+                        challengedConfig = _userManager.GetUserByName(challengedDiscordOrBeefName);
+                    }
+
+                    if (challengedConfig == null) {
+                        MessageChannel(channel, "I don't recognize that opponent.  Make sure they are on the ladder and have their discord name is registered.  See the list with **" + _botPrefix + "users**").GetAwaiter().GetResult();
+                        return;
+                    }
+
+                    // Challenge
+                    MessageBeefChannels("<@" + challengersConfig.DiscordName + "> (" + challengersConfig.BeefName + ") has challenged <@" + challengedConfig.DiscordName + "> (" + challengedConfig.BeefName + ")");
                 } else if (arguments.Length == 4) {
                     if (arguments[2] == "beat" || arguments[2] == "beats") {
                         if (!IsLeader(author)) {
@@ -114,11 +232,11 @@ namespace Beef {
                         if (!int.TryParse(losingPlayer, out losingRank)) losingRank = -1;
 
                         if (winningRank != -1 && losingRank != -1) {
-                            code = _manager.ReportWin(winningRank, losingRank);
+                            code = _presentationManager.ReportWin(winningRank, losingRank);
                         } else if (winningRank == -1 && losingRank != -1) {
-                            code = _manager.ReportWin(winningPlayer, losingRank);
+                            code = _presentationManager.ReportWin(winningPlayer, losingRank);
                         } else {
-                            code = _manager.ReportWin(winningPlayer, losingPlayer);
+                            code = _presentationManager.ReportWin(winningPlayer, losingPlayer);
                         }
 
                         if (code.Ok())
@@ -136,7 +254,7 @@ namespace Beef {
 
                         if (rank != -1) {
                             BeefEntry existingPlayer;
-                            code = _manager.RenamePlayer(rank - 1, newName, out existingPlayer);
+                            code = _presentationManager.RenamePlayer(rank - 1, newName, out existingPlayer);
 
                             if (existingPlayer != null) {
                                 playerOrRankToRename = existingPlayer.PlayerName;
@@ -145,7 +263,7 @@ namespace Beef {
                                 }
                             }
                         } else {
-                            code = _manager.RenamePlayer(playerOrRankToRename, newName);
+                            code = _presentationManager.RenamePlayer(playerOrRankToRename, newName);
                         }
 
                         if (code.Ok())
@@ -165,28 +283,28 @@ namespace Beef {
                             MessageChannel(channel, "Read the instructions for once in your life, that's not how you use this command.").GetAwaiter().GetResult();
                             return;
                         }
-                    
+
                         String playerToRemove = arguments[2];
                         int rank;
                         if (!int.TryParse(playerToRemove, out rank)) rank = -1;
-                    
+
                         if (rank != -1) {
                             BeefEntry removedPlayerEntry;
-                            code = _manager.RemovePlayer(rank - 1, out removedPlayerEntry);
-                    
+                            code = _presentationManager.RemovePlayer(rank - 1, out removedPlayerEntry);
+
                             if (code.Ok())
                                 playerToRemove = removedPlayerEntry.PlayerName;
                         } else {
-                            code = _manager.RemovePlayer(playerToRemove);
+                            code = _presentationManager.RemovePlayer(playerToRemove);
                         }
-                    
+
                         if (code.Ok()) {
                             MessageChannel(channel, "Removed **" + playerToRemove + "** from the ladder.").GetAwaiter().GetResult();
                         }
                     } else if (arguments[1] == "bracket" || arguments[1] == "list" || arguments[1] == "ladder") {
                         IsLeader(userInput.Author);
 
-                        List<BeefEntry> entries = _manager.ReadBracket();
+                        List<BeefEntry> entries = _presentationManager.ReadBracket();
 
                         if (entries.Count == 0)
                             code = ErrorCode.CouldNotReadTheLadder;
@@ -211,7 +329,7 @@ namespace Beef {
                             return;
                         }
 
-                        code = _manager.Undo();
+                        code = _presentationManager.Undo();
                         if (code.Ok()) {
                             MessageChannel(channel, "Undid what you should have done undid 10 minutes ago.").GetAwaiter().GetResult();
                         }
@@ -317,6 +435,37 @@ namespace Beef {
                     parmChars[index] = '\n';
             }
             return new string(parmChars).Split(new char[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        }
+
+        private void MessageBeefChannels(String message) {
+            Console.WriteLine(message);
+
+            IReadOnlyCollection<SocketGuild> guilds = _discordClient.Guilds;
+
+            // Find the bot
+            SocketGuild bot = null;
+            foreach (SocketGuild guild in guilds) {
+                if (guild.CurrentUser.IsBot) {
+                    bot = guild;
+                    break;
+                }
+            }
+
+            if (bot == null) {
+                Console.WriteLine("Somethings wrong.  There are no bots in the list of guilds!");
+                return;
+            }
+
+            // Find the beef channel
+            List<Task> tasks = new List<Task>();
+            foreach (SocketTextChannel channel in bot.TextChannels) {
+                if (channel.Name == "settle-the-beef") {
+                    tasks.Add(channel.SendMessageAsync(message));
+                }
+            }
+
+            foreach (Task task in tasks)
+                task.GetAwaiter().GetResult();
         }
 
         private async Task MessageChannel(ISocketMessageChannel channel, String message) {
