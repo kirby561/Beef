@@ -208,12 +208,13 @@ namespace Beef {
                     }
 
                     if (challengedConfig == null) {
-                        MessageChannel(channel, "I don't recognize that opponent.  Make sure they are on the ladder and have their discord name is registered.  See the list with **" + _botPrefix + "users**").GetAwaiter().GetResult();
+                        MessageChannel(channel, "I don't recognize that opponent.  Make sure they are on the ladder and have their discord name is registered.  See the list with **" + _botPrefix + "beef users**").GetAwaiter().GetResult();
                         return;
                     }
 
                     // Challenge
-                    MessageBeefChannels("<@" + challengersConfig.DiscordName + "> (" + challengersConfig.BeefName + ") has challenged <@" + challengedConfig.DiscordName + "> (" + challengedConfig.BeefName + ")");
+                    IssueBeefChallenge(challengersConfig, challengedConfig);
+                    code = ErrorCode.Success;
                 } else if (arguments.Length == 4) {
                     if (arguments[2] == "beat" || arguments[2] == "beats") {
                         if (!IsLeader(author)) {
@@ -437,8 +438,9 @@ namespace Beef {
             return new string(parmChars).Split(new char[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
         }
 
-        private void MessageBeefChannels(String message) {
-            Console.WriteLine(message);
+        private void IssueBeefChallenge(BeefUserConfig challenger, BeefUserConfig challenged) {
+            // MessageBeefChannels();
+            //Console.WriteLine(message);
 
             IReadOnlyCollection<SocketGuild> guilds = _discordClient.Guilds;
 
@@ -456,10 +458,24 @@ namespace Beef {
                 return;
             }
 
+            String challengerDiscordName = challenger.DiscordName;
+            String challengedDiscordName = challenged.DiscordName;
+
             // Find the beef channel
             List<Task> tasks = new List<Task>();
             foreach (SocketTextChannel channel in bot.TextChannels) {
                 if (channel.Name == "settle-the-beef") {
+                    // Check if any of the users we're challenging are in the channel
+                    foreach (SocketUser user in channel.Users) {
+                        String userId = user.Username + "#" + user.Discriminator;
+                        if (userId.Equals(challenged.DiscordName)) {
+                            challengedDiscordName = user.Mention;
+                        } else if (userId.Equals(challenger.DiscordName)) {
+                            challengerDiscordName = user.Mention;
+                        }
+                    }
+
+                    String message = challengerDiscordName + " (" + challenger.BeefName + ") has challenged " + challengedDiscordName + " (" + challenged.BeefName + ") to Settle the Beef!";
                     tasks.Add(channel.SendMessageAsync(message));
                 }
             }
