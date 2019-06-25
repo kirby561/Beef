@@ -222,6 +222,13 @@ namespace Beef {
             if (entries.Count == 0)
                 return ErrorCode.CouldNotReadTheLadder; // There was an error reading the bracket.
 
+            // Make sure that name doesn't exist already
+            foreach (BeefEntry entry in entries) {
+                if (entry.PlayerName.Equals(newName)) {
+                    return ErrorCode.DuplicatePlayerNameWhenRenaming;
+                }
+            }
+
             // Get the object ID for this player
             BeefEntry existingPlayerEntry = null;
             for (int i = 0; i < entries.Count; i++) {
@@ -253,6 +260,13 @@ namespace Beef {
 
             if (index <= 0 || index >= entries.Count) {
                 return ErrorCode.RankNotOnLadder;
+            }
+
+            // Make sure that name doesn't exist already
+            foreach (BeefEntry entry in entries) {
+                if (entry.PlayerName.Equals(newName)) {
+                    return ErrorCode.DuplicatePlayerNameWhenRenaming;
+                }
             }
 
             BeefEntry playerToRename = entries[index];

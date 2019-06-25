@@ -267,8 +267,15 @@ namespace Beef {
                             code = _presentationManager.RenamePlayer(playerOrRankToRename, newName);
                         }
 
-                        if (code.Ok())
+                        if (code.Ok()) {
+                            // We want to rename any registered users too
+                            BeefUserConfig existingUser = _userManager.GetUserByName(playerOrRankToRename);
+                            if (existingUser != null) {
+                                _userManager.ModifyUser(existingUser.BeefName, newName, existingUser.DiscordName);
+                            }
+
                             MessageChannel(channel, "**" + playerOrRankToRename + "** has been renamed to **" + newName + "**").GetAwaiter().GetResult();
+                        }
                     }
                 } else if (arguments.Length >= 2) {
                     if (arguments[1] == "version" && arguments.Length == 2) {
@@ -353,6 +360,8 @@ namespace Beef {
                         help += "\t **%beef% list [all]**. - Prints out the current ranks of everyone in the ladder to the user who typed it or the current channel if [all] is specified.\n";
                         help += "\t **%beef% ladder [all]**. - Same as %beef% list\n";
                         help += "\t **%beef% bracket [all]**. - Same as %beef% list\n";
+                        help += "\t **%beef% challenge <PlayerLadderNameOrDiscordName>**. - Challenges the player to Settle the Beef!  Each player must register their discord account first (see an admin and the beef register command).  This will @ each player in each settle-the-beef channel they are in across all servers.\n";
+                        help += "\t **%beef% users [all]**. - Prints all the users who have been registered with **%%beef%% register**\n";
                         help += "\nThe following commands are admin only:\n";
                         help += "\t **%beef% _<WinningPlayerOrRank>_ beat _<LosingPlayerOrRank>_** - Updates the ladder such that the winning player is placed in the losing player's position and everyone inbetween is shuffled to the right by one.\n";
                         help += "\t\t\t You can specifiy a rank or a name for each player.  Names are case sensitive.  Examples:\n";
@@ -362,6 +371,8 @@ namespace Beef {
                         help += "\t **%beef% _<WinningPlayerOrRank>_ beats _<LosingPlayerOrRank>_**. - Same as %beef% X beat Y (It accepts beats and beat)\n";
                         help += "\t **%beef% rename _<OldPlayerName>_ _<NewPlayerName>_**. - Renames a player on the ladder to the new name.\n";
                         help += "\t **%beef% remove _<PlayerOrRank>_**. - Removes the given player or rank from the ladder..\n";
+                        help += "\t **%beef% register <PlayerLadderName> <PlayerDiscordName#1234>**. - Registers the given ladder name with the given discord name for use with the challenge command.\n";
+                        help += "\t **%beef% unregister <PlayerLadderName>**. - Unregisters the given ladder name.\n";
                         help += "\t **%beef% undo**. - Undoes the last change to the ladder (renames, wins, etc..).\n";
                         help += "\t **%beef% version**. - Prints the version of BeefBot\n";
                         help = help.Replace("%beef%", _botPrefix + "beef");

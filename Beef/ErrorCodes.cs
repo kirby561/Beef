@@ -24,6 +24,7 @@ namespace Beef {
 
         // Renaming/Removing
         NoExistingPlayerByThatName,
+        DuplicatePlayerNameWhenRenaming,
 
         // Removing
         RankNotOnLadder,
@@ -77,6 +78,8 @@ namespace Beef {
                     return "That loser isn't even on the ladder.  Is this the level of proficiency you have in other things in life too?";
                 case ErrorCode.NoExistingPlayerByThatName:
                     return "How can I rename a player that doesn't exist?  Seriously, check the ladder.  That name's not on it.";
+                case ErrorCode.DuplicatePlayerNameWhenRenaming:
+                    return "There's already a player with that name on the ladder.  I bet it's you.  You're so bad you want there to be some ambiguity when you lose.";
                 case ErrorCode.RankNotOnLadder:
                     return "Someone can't read numbers.  Pick a rank that actually is on the ladder.";
                 case ErrorCode.NothingToUndo:
