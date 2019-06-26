@@ -182,10 +182,14 @@ namespace Beef {
             if (!_userNameToBeefConfigMap.ContainsKey(beefName))
                 return ErrorCode.BeefNameDoesNotExist;
 
+            BeefUserConfig user = _userNameToBeefConfigMap[beefName];
             String filePath = GetBeefUserFilePath(beefName);
             if (File.Exists(filePath)) {
                 try {
                     File.Delete(filePath);
+                    _beefUserConfigs.Remove(user);
+                    _userNameToBeefConfigMap.Remove(beefName);
+                    _discordNameBeefConfigMap.Remove(user.DiscordName);
                 } catch (Exception ex) {
                     Console.WriteLine("Could not delete the BeefUserConfig file at " + filePath);
                     Console.WriteLine("Exception: " + ex.Message);
@@ -213,12 +217,15 @@ namespace Beef {
         /// <param name="newDiscordName">The new discord name to give them.</param>
         /// <returns>Returns success if it was successful or an error code if it wasn't.</returns>
         public ErrorCode ModifyUser(String existingBeefName, String newBeefName, String newDiscordName) {
-            ErrorCode result = RegisterUser(newBeefName, newDiscordName);
-            if (!result.Ok()) {
-                return result;
+            if (!_userNameToBeefConfigMap.ContainsKey(existingBeefName)) {
+                return ErrorCode.NoExistingPlayerByThatName;
             }
 
-            return DeleteUser(existingBeefName);
+            ErrorCode result = DeleteUser(existingBeefName);
+            if (!result.Ok())
+                return result;
+
+            return RegisterUser(newBeefName, newDiscordName);
         }
 
         /// <summary>

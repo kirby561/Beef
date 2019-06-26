@@ -497,16 +497,54 @@ namespace Beef {
 
         private async Task MessageChannel(ISocketMessageChannel channel, String message) {
             Console.WriteLine(message);
-            await channel.SendMessageAsync(message);
+
+            List<String> messages = GetBrokenUpMessages(message);
+
+            foreach (String messageSection in messages) {
+                await channel.SendMessageAsync(messageSection);
+            }
+        }
+
+        private List<String> GetBrokenUpMessages(String message) {
+            // Messages can't be more than 2000 characters
+            // Do 1000 just to be safe if it doesn't count 2 byte characters or something
+            int charsLeft = message.Length;
+            int lastIndex = 0;
+            List<String> messages = new List<String>();
+            while (charsLeft > 1000) {
+                int nextIndex = lastIndex + 1000;
+
+                // Go see if there's a newline within 100 characters and split there if so
+                for (int i = 0; i < 200; i++) {
+                    char c = message[nextIndex - i];
+                    if (c == '\n') {
+                        nextIndex = nextIndex - i;
+                        break;
+                    }
+                }
+
+                int numberOfChars = nextIndex - lastIndex;
+                messages.Add(message.Substring(lastIndex, numberOfChars));
+                lastIndex = nextIndex;
+                charsLeft -= numberOfChars;
+            }
+            messages.Add(message.Substring(lastIndex));
+
+            return messages;
         }
 
         private async Task MessageUser(SocketUser user, String message) {
             Console.WriteLine("To " + user.Username + ": " + message);
-            await user.SendMessageAsync(message);
+
+            List<String> messages = GetBrokenUpMessages(message);
+
+            foreach (String messageSection in messages) {
+                await user.SendMessageAsync(messageSection);
+            }
         }
 
         private async Task MessageErrorToChannel(ISocketMessageChannel channel, ErrorCode code) {
-            String errorMessage = code.GetUserMessage();
+            String errorMessage = code.GetUserMessage(_botPrefix);
             Console.WriteLine(errorMessage);
             await channel.SendMessageAsync(errorMessage);
         }

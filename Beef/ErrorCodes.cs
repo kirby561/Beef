@@ -54,7 +54,7 @@ namespace Beef {
             return code == ErrorCode.Success;
         }
 
-        public static String GetUserMessage(this ErrorCode code) {
+        public static String GetUserMessage(this ErrorCode code, String botPrefix) {
             switch (code) {
                 case ErrorCode.Success: 
                     return "All good.";
@@ -87,7 +87,7 @@ namespace Beef {
                 case ErrorCode.LadderDifferentSize:
                     return "Okok I'll give.  This one is my bad.  I can't restore a backup that's a different size than the current ladder because that's way too much work.";
                 case ErrorCode.CommandNotRecognized:
-                    return "Not a command bro.  Try \"**.beef help**\" so you have some clue what you're doing next time.";
+                    return "Not a command bro.  Try \"**" + botPrefix + "beef help**\" so you have some clue what you're doing next time.";
                 case ErrorCode.CouldNotRevertBackupFile:
                     return "There was a problem moving the undone backup file to the archive.  This indicates a problem with the file system.";
                 case ErrorCode.DiscordNameExists:
