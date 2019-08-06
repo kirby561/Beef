@@ -33,7 +33,7 @@ namespace Beef {
 
         public async Task Run() {
             _presentationManager = new PresentationManager(_config, _exePath + "/Backups");
-            _userManager = new BeefUserConfigManager(_exePath + "Users");
+            _userManager = new BeefUserConfigManager(_exePath + "/Users");
 
             // Log in to discord
             String token = _config.DiscordBotToken;
@@ -361,7 +361,7 @@ namespace Beef {
                         help += "\t **%beef% ladder [all]**. - Same as %beef% list\n";
                         help += "\t **%beef% bracket [all]**. - Same as %beef% list\n";
                         help += "\t **%beef% challenge <PlayerLadderNameOrDiscordName>**. - Challenges the player to Settle the Beef!  Each player must register their discord account first (see an admin and the beef register command).  This will @ each player in each settle-the-beef channel they are in across all servers.\n";
-                        help += "\t **%beef% users [all]**. - Prints all the users who have been registered with **%%beef%% register**\n";
+                        help += "\t **%beef% users [all]**. - Prints all the users who have been registered with **%beef% register**\n";
                         help += "\nThe following commands are admin only:\n";
                         help += "\t **%beef% _<WinningPlayerOrRank>_ beat _<LosingPlayerOrRank>_** - Updates the ladder such that the winning player is placed in the losing player's position and everyone inbetween is shuffled to the right by one.\n";
                         help += "\t\t\t You can specifiy a rank or a name for each player.  Names are case sensitive.  Examples:\n";

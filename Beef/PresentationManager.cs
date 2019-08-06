@@ -177,6 +177,10 @@ namespace Beef {
                 return ErrorCode.LoserIsNotOnTheLadder;
             }
 
+            if (loserIndex >= winnerIndex) {
+                return ErrorCode.WinnerCantBeHigherThanLoser;
+            }
+
             return ReportWin(entries, winnerName, winnerIndex, loserIndex);
         }
 
@@ -222,7 +226,7 @@ namespace Beef {
             if (entries.Count == 0)
                 return ErrorCode.CouldNotReadTheLadder; // There was an error reading the bracket.
 
-            // Make sure that name doesn't exist already
+             // Make sure that name doesn't exist already
             foreach (BeefEntry entry in entries) {
                 if (entry.PlayerName.Equals(newName)) {
                     return ErrorCode.DuplicatePlayerNameWhenRenaming;
