@@ -16,6 +16,8 @@ namespace Beef {
         public String BeefName = ""; // This is the name that is displayed on the Beef ladder. It must be unique on the ladder.
         public String DiscordName = ""; // This is the discord name including the #1234 tag.
 
+        public LadderInfo LadderInfo = null; // This is information about their ladder profile so we can update their MMR.
+
         public BeefUserConfig(String beefName, String discordName) {
             BeefName = beefName;
             DiscordName = discordName;
