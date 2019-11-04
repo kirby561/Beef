@@ -7,7 +7,7 @@ namespace Beef {
     /// </summary>
     public class BeefConfig {
         // This is the current version and should always be incremented when changing the config file format.
-        public static int ReaderConfigVersion = 0;  
+        public static int ReaderConfigVersion = 1;  
 
         // Version
         public int Version { get; set; } = ReaderConfigVersion;          // This identifies the version of the config file.
@@ -22,6 +22,8 @@ namespace Beef {
         public String GoogleApiCredentialFile { get; set; } = "credentials.json";
         public String GoogleApiApplicationName { get; set; } = "";
         public String BeefLadderLink { get; set; } = ""; // This is separate from the presentation ID because you need the readonly link.
+
+        public ReaderConfig MmrReaderConfig { get; set; } = ReaderConfig.CreateDefault();
 
         /// <summary>
         /// Creates a ReaderConfig with default settings.

@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿using Beef.MmrReader;
+using Discord;
 using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
@@ -6,7 +7,7 @@ using System.IO;
 using System.Threading.Tasks;
 
 namespace Beef {
-    class Application {
+    class Application : ProfileInfoProvider, MmrListener {
         private readonly String _version = "1.2";
         private BeefConfig _config;
         private String _botPrefix;
@@ -14,6 +15,7 @@ namespace Beef {
         private PresentationManager _presentationManager;
         private String[] _leaderRoles;
         private String _exePath;
+        private MmrReader.MmrReader _mmrReader;
 
         private DiscordSocketClient _discordClient;
 
@@ -29,6 +31,9 @@ namespace Beef {
             _config = config;
             _botPrefix = config.BotPrefix;
             _leaderRoles = config.LeaderRoles;
+
+            _mmrReader = new MmrReader.MmrReader(_config.MmrReaderConfig);
+            _mmrReader.StartThread(this, this);
         }
 
         public async Task Run() {
@@ -547,6 +552,17 @@ namespace Beef {
             String errorMessage = code.GetUserMessage(_botPrefix);
             Console.WriteLine(errorMessage);
             await channel.SendMessageAsync(errorMessage);
+        }
+
+        public List<ProfileInfo> GetLadderUsers() {
+            List<ProfileInfo> list = new List<ProfileInfo>();
+            ProfileInfo fakeUser = new ProfileInfo("US", 1, 1986271);
+            list.Add(fakeUser);
+            return list;
+        }
+
+        public void OnMmrRead(List<Tuple<ProfileInfo, LadderInfo>> mmrList) {
+            Console.WriteLine("Temp: read some mmr");
         }
     }
 }

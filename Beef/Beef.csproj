@@ -157,7 +157,8 @@
     <Compile Include="ErrorCodes.cs" />
     <Compile Include="JsonUtil.cs" />
     <Compile Include="MmrReader\LadderInfo.cs" />
-    <Compile Include="MmrReader\LadderInfoProvider.cs" />
+    <Compile Include="MmrReader\ProfileInfo.cs" />
+    <Compile Include="MmrReader\ProfileInfoProvider.cs" />
     <Compile Include="MmrReader\MmrListener.cs" />
     <Compile Include="MmrReader\MmrReader.cs" />
     <Compile Include="PresentationManager.cs" />

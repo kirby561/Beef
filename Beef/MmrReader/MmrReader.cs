@@ -36,7 +36,7 @@ namespace Beef.MmrReader {
         private String _accessCacheFile;
 
         // Interface
-        private LadderInfoProvider _ladderInfoProvider;
+        private ProfileInfoProvider _profileInfoProvider;
         private MmrListener _listener;
 
         // Reader configuration
@@ -82,21 +82,115 @@ namespace Beef.MmrReader {
             return time;
         }
 
+        private LadderInfo GetBestLadderInfoFor(ProfileInfo profileInfo) {
+            // Check that our authorization token is up to date
+            String accessToken = GetAccessToken();
+            
+            String url = "https://us.api.blizzard.com/sc2/profile/";
+            url += _regionIdMap[profileInfo.RegionId] + "/";
+            url += profileInfo.RealmId + "/";
+            url += profileInfo.ProfileId + "/";
+            url += "/ladder/summary?locale=en_US";
+            url += "&access_token=" + accessToken;
+
+            // Make the request
+            Task<string> responseTask = _httpClient.GetStringAsync(url);
+            bool succeeded = true;
+            try {
+                responseTask.Wait();
+            } catch (Exception ex) {
+                succeeded = false;
+                Console.WriteLine("An exception was thrown polling the endpoint: " + ex.Message);
+                if (ex.InnerException != null) {
+                    Console.WriteLine("\tInnerException: " + ex.InnerException.Message);
+                }
+
+                // Since we had an exception, try refreshing the Auth token as well.
+                try {
+                    File.Delete(_accessCacheFile);
+                } catch (Exception deleteEx) {
+                    Console.WriteLine("After a response error, could not delete the access cache file: " + deleteEx.Message);
+                }
+            }
+
+            if (succeeded) {
+                // The Blizzard API returns a JSON string that contains  
+                //    ladder information about the above profile.
+                string jsonResponse = responseTask.Result;
+
+                // We expect the response to have a "allLadderMemberships" property with each ladder inside
+                try {
+                    dynamic ladderData = _jsonSerializer.Deserialize<dynamic>(jsonResponse);
+
+                    // First get all the showcase entries. We'll use this to find out the race
+                    // of a particular ladder ID later.
+                    Dictionary<String, String> ladderIdToRace = new Dictionary<String, String>();
+                    dynamic showCaseEntries = ladderData["showCaseEntries"];
+                    for (int i = 0; i < showCaseEntries.Length; i++) {
+                        // showCaseEntries is an array of JSON objects.
+                        // Look for the 1v1 showcases and remember the ladder ID/race combo
+                        dynamic entry = showCaseEntries[i];
+                        dynamic team = entry["team"];
+                        dynamic members = team["members"];
+                        if (team["localizedGameMode"] == "1v1") {
+                            String race = members[0]["favoriteRace"];
+                            race = race.Substring(0, 1).ToUpper() + race.Substring(1);
+
+                            String ladderIdStr = showCaseEntries[i]["ladderId"];
+                            ladderIdToRace.Add(ladderIdStr, race);
+                        }
+                    }
+
+                    dynamic allLadderMemberships = ladderData["allLadderMemberships"];
+
+                    int maxMmrSoFar = -1;
+                    LadderInfo bestLadder = null;
+                    for (int i = 0; i < allLadderMemberships.Length; i++) {
+                        dynamic ladderEntry = allLadderMemberships[i];
+                        String ladderIdStr = ladderEntry["ladderId"];
+                        String gameMode = ladderEntry["localizedGameMode"];
+
+                        long ladderId;
+                        if (long.TryParse(ladderIdStr, out ladderId) && gameMode.StartsWith("1v1")) {
+                            String mmrStr = GetMmrInfoFor(profileInfo.RegionId, profileInfo.RealmId, profileInfo.ProfileId, ladderId);
+                            int mmr;
+                            if (mmrStr != null && int.TryParse(mmrStr, out mmr)) {
+                                if (mmr > maxMmrSoFar) {
+                                    maxMmrSoFar = mmr;
+                                    bestLadder = new LadderInfo();
+                                    bestLadder.LadderId = ladderId;
+                                    bestLadder.Mmr = mmrStr;
+                                    bestLadder.League = gameMode.Replace("1v1", "").Trim();
+                                    bestLadder.Race = ladderIdToRace[ladderIdStr];
+                                }
+                            }
+                        }
+                    }
+                    
+                    return bestLadder;
+                } catch (Exception e) {
+                    Console.WriteLine("An error occurred extracting the MMR from the API response.  Exception: " + e.Message);
+                }
+            }
+            
+            return null;
+        }
+
         /// <summary>
         /// Polls the Blizzard API for the latest MMR and returns it or null if there was an error
         /// If the access token is out of date it is updated as well first.
         /// </summary>
-        private String GetMmrInfoFor(LadderInfo ladderInfo) {
+        private String GetMmrInfoFor(String regionId, long realmId, long profileId, long ladderId) {
             // Check that our authorization token is up to date
             String accessToken = GetAccessToken();
 
             // Build the URL
             String url = "https://us.api.blizzard.com/sc2/profile/";
-            url += _regionIdMap[ladderInfo.RegionId] + "/";
-            url += ladderInfo.RealmId + "/";
-            url += ladderInfo.ProfileId + "/";
+            url += _regionIdMap[regionId] + "/";
+            url += realmId + "/";
+            url += profileId + "/";
             url += "ladder/";
-            url += ladderInfo.LadderId;
+            url += ladderId;
             url += "?locale=en_US";
             url += "&access_token=" + accessToken;
 
@@ -241,11 +335,11 @@ namespace Beef.MmrReader {
                     nextRefreshTimeMs = GetNowInMs() + _configuration.MsPerRead;
 
                     // Do the next refresh
-                    List<Tuple<LadderInfo, String>> nextMmrList = new List<Tuple<LadderInfo, String>>();
-                    List<LadderInfo> users = _ladderInfoProvider.GetLadderUsers();
-                    foreach (LadderInfo user in users) {
-                        String mmr = GetMmrInfoFor(user);
-                        nextMmrList.Add(new Tuple<LadderInfo, String>(user, mmr));
+                    List<Tuple<ProfileInfo, LadderInfo>> nextMmrList = new List<Tuple<ProfileInfo, LadderInfo>>();
+                    List<ProfileInfo> users = _profileInfoProvider.GetLadderUsers();
+                    foreach (ProfileInfo user in users) {
+                        LadderInfo ladderInfo = GetBestLadderInfoFor(user);
+                        nextMmrList.Add(new Tuple<ProfileInfo, LadderInfo>(user, ladderInfo));
                     }
 
                     _listener.OnMmrRead(nextMmrList);
@@ -265,14 +359,14 @@ namespace Beef.MmrReader {
         }
 
         /// <summary>
-        /// Starts a thread that periodically reads the MMRs of all the accounts provided by the LadderInfoProvider and calls the given listener whenever it has been updated.
+        /// Starts a thread that periodically reads the MMRs of all the accounts provided by the ProfilerInfoProvider and calls the given listener whenever it has been updated.
         /// </summary>
         /// <param name="provider">A class to call to get the current list of accounts' ladder information to get MMR for.</param>
         /// <param name="listener">A listener to call when MMR has been retrieved for each account.</param>
-        public void StartThread(LadderInfoProvider provider, MmrListener listener) {
+        public void StartThread(ProfileInfoProvider provider, MmrListener listener) {
             lock (_lock) {
                 if (!_isThreadRunning) {
-                    _ladderInfoProvider = provider;
+                    _profileInfoProvider = provider;
                     _listener = listener;
                     _isThreadRunning = true;
                     _mmrReadThread = new Thread(ReadMmrLoop);
