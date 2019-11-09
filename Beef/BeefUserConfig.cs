@@ -23,8 +23,22 @@ namespace Beef {
             DiscordName = discordName;
         }
 
+        public BeefUserConfig(BeefUserConfig other) {
+            BeefName = other.BeefName;
+            DiscordName = other.DiscordName;
+
+            if (other.ProfileInfo != null)
+                ProfileInfo = new ProfileInfo(other.ProfileInfo);
+            else
+                ProfileInfo = null;
+        }
+
         public BeefUserConfig() {
             // This is so we can deserialize from JSON.
+        }
+
+        public BeefUserConfig Clone() {
+            return new BeefUserConfig(this);
         }
     }
 }

@@ -15,5 +15,11 @@ namespace Beef {
             RealmId = realmId;
             ProfileId = profileId;
         }
+
+        public ProfileInfo(ProfileInfo other) {
+            RegionId = other.RegionId;
+            RealmId = other.RealmId;
+            ProfileId = other.ProfileId;
+        }
     }
 }

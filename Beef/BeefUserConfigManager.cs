@@ -7,6 +7,10 @@ namespace Beef {
     class BeefUserConfigManager {
         // User registration information
         private String _beefUsersPath; // This is where to store the BeefUserConfigs
+
+        // The lock is so that we can have safe read-only access from threads other than the thread this
+        // manager is being used on.  Only one thread should be modifying this class however.
+        private Object _userConfigsLock = new Object();
         private List<BeefUserConfig> _beefUserConfigs = new List<BeefUserConfig>();
         private Dictionary<String, BeefUserConfig> _userNameToBeefConfigMap = new Dictionary<String, BeefUserConfig>();
         private Dictionary<String, BeefUserConfig> _discordNameBeefConfigMap = new Dictionary<String, BeefUserConfig>();
@@ -52,25 +56,27 @@ namespace Beef {
                                 continue;
                             }
 
-                            if (_userNameToBeefConfigMap.ContainsKey(configFile.BeefName)) {
-                                Console.WriteLine("Duplicate names in the beef config: " + configFile.BeefName + " file: " + filePath);
-                                continue;
-                            }
+                            lock (_userConfigsLock) {
+                                if (_userNameToBeefConfigMap.ContainsKey(configFile.BeefName)) {
+                                    Console.WriteLine("Duplicate names in the beef config: " + configFile.BeefName + " file: " + filePath);
+                                    continue;
+                                }
                            
-                            if (String.IsNullOrWhiteSpace(configFile.DiscordName)) {
-                                Console.WriteLine("Discord name cant be empty. File: " + filePath);
-                                continue;
-                            }
+                                if (String.IsNullOrWhiteSpace(configFile.DiscordName)) {
+                                    Console.WriteLine("Discord name cant be empty. File: " + filePath);
+                                    continue;
+                                }
 
-                            if (_discordNameBeefConfigMap.ContainsKey(configFile.DiscordName)) {
-                                Console.WriteLine("Duplicate discord names a beef user: " + configFile.DiscordName + " file: " + filePath);
-                                continue;
-                            }
+                                if (_discordNameBeefConfigMap.ContainsKey(configFile.DiscordName)) {
+                                    Console.WriteLine("Duplicate discord names a beef user: " + configFile.DiscordName + " file: " + filePath);
+                                    continue;
+                                }
 
-                            // Add the user and move on
-                            _beefUserConfigs.Add(configFile);
-                            _userNameToBeefConfigMap.Add(configFile.BeefName, configFile);
-                            _discordNameBeefConfigMap.Add(configFile.DiscordName, configFile);
+                                // Add the user and move on
+                                _beefUserConfigs.Add(configFile);
+                                _userNameToBeefConfigMap.Add(configFile.BeefName, configFile);
+                                _discordNameBeefConfigMap.Add(configFile.DiscordName, configFile);
+                            }
                         } catch (Exception ex) {
                             Console.WriteLine("Could not deserialize the BeefUserConfig file.  Is the format correct?");
                             Console.WriteLine("Exception: " + ex.Message);
@@ -96,7 +102,9 @@ namespace Beef {
         /// <returns>Returns the user config if they have been registered or null if they have not.</returns>
         public BeefUserConfig GetUserByName(String name) {
             try {
-                return _userNameToBeefConfigMap[name];
+                lock (_userConfigsLock) {
+                    return _userNameToBeefConfigMap[name];
+                }
             } catch (KeyNotFoundException) {
                 return null;
             }
@@ -109,7 +117,9 @@ namespace Beef {
         /// <returns>Returns the config of the user if they have been registered.  Returns null if they have not been registered yet.</returns>
         public BeefUserConfig GetUserByDiscordId(String discordId) {
             try {
-                return _discordNameBeefConfigMap[discordId];
+                lock (_userConfigsLock) {
+                    return _discordNameBeefConfigMap[discordId];
+                }
             } catch (KeyNotFoundException) {
                 return null;
             }
@@ -122,14 +132,16 @@ namespace Beef {
         /// <param name="discordName">The discord name to associate with the beef name.</param>
         /// <returns>Returns success if it was successful or an error code if not.</returns>
         public ErrorCode RegisterUser(String beefName, String discordName) {
-            if (_discordNameBeefConfigMap.ContainsKey(discordName))
-                return ErrorCode.DiscordNameExists;
+            lock (_userConfigsLock) {
+                if (_discordNameBeefConfigMap.ContainsKey(discordName))
+                    return ErrorCode.DiscordNameExists;
 
-            if (_userNameToBeefConfigMap.ContainsKey(beefName))
-                return ErrorCode.BeefNameAlreadyExists;
+                if (_userNameToBeefConfigMap.ContainsKey(beefName))
+                    return ErrorCode.BeefNameAlreadyExists;
 
-            if (ContainsInvalidCharacters(beefName))
-                return ErrorCode.BeefNameContainsInvalidCharacters;
+                if (ContainsInvalidCharacters(beefName))
+                    return ErrorCode.BeefNameContainsInvalidCharacters;
+            }
 
             String filePath = GetBeefUserFilePath(beefName);
             if (File.Exists(filePath))
@@ -166,9 +178,11 @@ namespace Beef {
             }
 
             // Add them to the maps
-            _beefUserConfigs.Add(config);
-            _userNameToBeefConfigMap.Add(config.BeefName, config);
-            _discordNameBeefConfigMap.Add(config.DiscordName, config);
+            lock (_userConfigsLock) {
+                _beefUserConfigs.Add(config);
+                _userNameToBeefConfigMap.Add(config.BeefName, config);
+                _discordNameBeefConfigMap.Add(config.DiscordName, config);
+            }
 
             return ErrorCode.Success;
         }
@@ -179,34 +193,49 @@ namespace Beef {
         /// <param name="beefName">The name to remove.</param>
         /// <returns>Returns success if the user was unregistered.  An error code is returned otherwise.</returns>
         public ErrorCode DeleteUser(String beefName) {
-            if (!_userNameToBeefConfigMap.ContainsKey(beefName))
-                return ErrorCode.BeefNameDoesNotExist;
+            lock (_userConfigsLock) {
+                if (!_userNameToBeefConfigMap.ContainsKey(beefName))
+                    return ErrorCode.BeefNameDoesNotExist;
 
-            BeefUserConfig user = _userNameToBeefConfigMap[beefName];
-            String filePath = GetBeefUserFilePath(beefName);
-            if (File.Exists(filePath)) {
-                try {
-                    File.Delete(filePath);
-                    _beefUserConfigs.Remove(user);
-                    _userNameToBeefConfigMap.Remove(beefName);
-                    _discordNameBeefConfigMap.Remove(user.DiscordName);
-                } catch (Exception ex) {
-                    Console.WriteLine("Could not delete the BeefUserConfig file at " + filePath);
-                    Console.WriteLine("Exception: " + ex.Message);
-                    if (ex.InnerException != null) {
-                        Console.WriteLine("Inner Exception: " + ex.InnerException.Message);
+                BeefUserConfig user = _userNameToBeefConfigMap[beefName];
+                String filePath = GetBeefUserFilePath(beefName);
+                if (File.Exists(filePath)) {
+                    try {
+                        File.Delete(filePath);
+                        _beefUserConfigs.Remove(user);
+                        _userNameToBeefConfigMap.Remove(beefName);
+                        _discordNameBeefConfigMap.Remove(user.DiscordName);
+                    } catch (Exception ex) {
+                        Console.WriteLine("Could not delete the BeefUserConfig file at " + filePath);
+                        Console.WriteLine("Exception: " + ex.Message);
+                        if (ex.InnerException != null) {
+                            Console.WriteLine("Inner Exception: " + ex.InnerException.Message);
+                        }
+
+                        return ErrorCode.CouldNotDeleteFile;
                     }
-
-                    return ErrorCode.CouldNotDeleteFile;
                 }
             }
 
             return ErrorCode.Success;
         }
-        
+
         /// <returns>Returns the list of registered users.</returns>
         public List<BeefUserConfig> GetUsers() {
-            return _beefUserConfigs;
+            lock (_userConfigsLock) {
+                return _beefUserConfigs;
+            }
+        }
+
+        /// <returns>Returns a copy of the list of registered users.</returns>
+        public List<BeefUserConfig> GetUsersCopy() {
+            lock (_userConfigsLock) {
+                List<BeefUserConfig> copy = new List<BeefUserConfig>();
+                foreach (BeefUserConfig config in GetUsers()) {
+                    copy.Add(config.Clone());
+                }
+                return copy;
+            }
         }
 
         /// <summary>
@@ -217,8 +246,10 @@ namespace Beef {
         /// <param name="newDiscordName">The new discord name to give them.</param>
         /// <returns>Returns success if it was successful or an error code if it wasn't.</returns>
         public ErrorCode ModifyUser(String existingBeefName, String newBeefName, String newDiscordName) {
-            if (!_userNameToBeefConfigMap.ContainsKey(existingBeefName)) {
-                return ErrorCode.NoExistingPlayerByThatName;
+            lock (_userConfigsLock) {
+                if (!_userNameToBeefConfigMap.ContainsKey(existingBeefName)) {
+                    return ErrorCode.NoExistingPlayerByThatName;
+                }
             }
 
             ErrorCode result = DeleteUser(existingBeefName);

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Beef {
     class Application : ProfileInfoProvider, MmrListener {
-        private readonly String _version = "1.2";
+        private readonly String _version = "1.3";
         private BeefConfig _config;
         private String _botPrefix;
         private BeefUserConfigManager _userManager;
@@ -555,10 +555,14 @@ namespace Beef {
         }
 
         public List<ProfileInfo> GetLadderUsers() {
-            List<ProfileInfo> list = new List<ProfileInfo>();
-            ProfileInfo fakeUser = new ProfileInfo("US", 1, 1986271);
-            list.Add(fakeUser);
-            return list;
+            List<BeefUserConfig> users = _userManager.GetUsersCopy();
+            List<ProfileInfo> profileInfoList = new List<ProfileInfo>();
+
+            foreach (BeefUserConfig user in users) {
+                profileInfoList.Add(user.ProfileInfo);
+            }
+            
+            return profileInfoList;
         }
 
         public void OnMmrRead(List<Tuple<ProfileInfo, LadderInfo>> mmrList) {
