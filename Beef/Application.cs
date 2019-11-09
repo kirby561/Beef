@@ -32,14 +32,14 @@ namespace Beef {
             _botPrefix = config.BotPrefix;
             _leaderRoles = config.LeaderRoles;
 
+            _presentationManager = new PresentationManager(_config, _exePath + "/Backups");
+            _userManager = new BeefUserConfigManager(_exePath + "/Users");
+
             _mmrReader = new MmrReader.MmrReader(_config.MmrReaderConfig);
             _mmrReader.StartThread(this, this);
         }
 
         public async Task Run() {
-            _presentationManager = new PresentationManager(_config, _exePath + "/Backups");
-            _userManager = new BeefUserConfigManager(_exePath + "/Users");
-
             // Log in to discord
             String token = _config.DiscordBotToken;
             await _discordClient.LoginAsync(TokenType.Bot, token);
