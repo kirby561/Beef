@@ -370,24 +370,24 @@ namespace Beef {
                         help += "The following commands are available:\n";
                         help += "\t **%beef%** - Prints the link to the ladder.\n";
                         help += "\t **%beef% help [all]** - Prints this message to the user who typed it or the channel if [all] is specified.\n";
-                        help += "\t **%beef% list [all]**. - Prints out the current ranks of everyone in the ladder to the user who typed it or the current channel if [all] is specified.\n";
-                        help += "\t **%beef% ladder [all]**. - Same as %beef% list\n";
-                        help += "\t **%beef% bracket [all]**. - Same as %beef% list\n";
-                        help += "\t **%beef% challenge <PlayerLadderNameOrDiscordName>**. - Challenges the player to Settle the Beef!  Each player must register their discord account first (see an admin and the beef register command).  This will @ each player in each settle-the-beef channel they are in across all servers.\n";
-                        help += "\t **%beef% users [all]**. - Prints all the users who have been registered with **%beef% register**\n";
+                        help += "\t **%beef% list [all]** - Prints out the current ranks of everyone in the ladder to the user who typed it or the current channel if [all] is specified.\n";
+                        help += "\t **%beef% ladder [all]** - Same as %beef% list\n";
+                        help += "\t **%beef% bracket [all]** - Same as %beef% list\n";
+                        help += "\t **%beef% challenge <PlayerLadderNameOrDiscordName>** - Challenges the player to Settle the Beef!  Each player must register their discord account first (see an admin and the beef register command).  This will @ each player in each settle-the-beef channel they are in across all servers.\n";
+                        help += "\t **%beef% users [all]** - Prints all the users who have been registered with **%beef% register**\n";
                         help += "\nThe following commands are admin only:\n";
                         help += "\t **%beef% _<WinningPlayerOrRank>_ beat _<LosingPlayerOrRank>_** - Updates the ladder such that the winning player is placed in the losing player's position and everyone inbetween is shuffled to the right by one.\n";
                         help += "\t\t\t You can specifiy a rank or a name for each player.  Names are case sensitive.  Examples:\n";
-                        help += "\t\t\t\t **%beef% 4 beat 3**.  --  Will swap the player in rank 4 with player in rank 3.\n";
-                        help += "\t\t\t\t **%beef% 4 beat 1**.  --  Will put the rank 4 player in rank 1, the rank 1 player in rank 2, and the rank 3 player in rank 4\n";
-                        help += "\t\t\t\t **%beef% bum beat GamerRichy**.  --  Will put bum in rank 1, GamerRichy in rank 2, and shuffle everyone else accordingly.\n";
+                        help += "\t\t\t\t **%beef% 4 beat 3**  --  Will swap the player in rank 4 with player in rank 3.\n";
+                        help += "\t\t\t\t **%beef% 4 beat 1**  --  Will put the rank 4 player in rank 1, the rank 1 player in rank 2, and the rank 3 player in rank 4\n";
+                        help += "\t\t\t\t **%beef% bum beat GamerRichy**  --  Will put bum in rank 1, GamerRichy in rank 2, and shuffle everyone else accordingly.\n";
                         help += "\t **%beef% _<WinningPlayerOrRank>_ beats _<LosingPlayerOrRank>_**. - Same as %beef% X beat Y (It accepts beats and beat)\n";
                         help += "\t **%beef% rename _<OldPlayerName>_ _<NewPlayerName>_**. - Renames a player on the ladder to the new name.\n";
-                        help += "\t **%beef% remove _<PlayerOrRank>_**. - Removes the given player or rank from the ladder..\n";
-                        help += "\t **%beef% register <PlayerLadderName> <PlayerDiscordName#1234>**. - Registers the given ladder name with the given discord name for use with the challenge command.\n";
-                        help += "\t **%beef% unregister <PlayerLadderName>**. - Unregisters the given ladder name.\n";
-                        help += "\t **%beef% undo**. - Undoes the last change to the ladder (renames, wins, etc..).\n";
-                        help += "\t **%beef% version**. - Prints the version of BeefBot\n";
+                        help += "\t **%beef% remove _<PlayerOrRank>_** - Removes the given player or rank from the ladder..\n";
+                        help += "\t **%beef% register <PlayerLadderName> <PlayerDiscordName#1234>** - Registers the given ladder name with the given discord name for use with the challenge command.\n";
+                        help += "\t **%beef% unregister <PlayerLadderName>** - Unregisters the given ladder name.\n";
+                        help += "\t **%beef% undo** - Undoes the last change to the ladder (renames, wins, etc..).\n";
+                        help += "\t **%beef% version** - Prints the version of BeefBot\n";
                         help = help.Replace("%beef%", _botPrefix + "beef");
 
                         // Send the help message to all if requested.  Otherwise
