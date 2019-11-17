@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using System.Threading.Tasks;
+using System.Windows.Threading;
 
 namespace Beef {
     class Program {
@@ -15,7 +17,14 @@ namespace Beef {
             }
 
             Application app = new Application(config, exePath);
-            app.Run().GetAwaiter().GetResult();
+            Task appRunLoop = app.Run();
+
+            // Make a dispatcher frame to execute the events
+            var frame = new DispatcherFrame();
+            Dispatcher.PushFrame(frame);
+
+            // We'll never get here
+            appRunLoop.GetAwaiter().GetResult();
         }
     }
 }

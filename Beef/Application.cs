@@ -4,7 +4,9 @@ using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Threading;
 
 namespace Beef {
     class Application : ProfileInfoProvider, MmrListener {
@@ -16,6 +18,7 @@ namespace Beef {
         private String[] _leaderRoles;
         private String _exePath;
         private MmrReader.MmrReader _mmrReader;
+        private DispatcherSynchronizationContext _mainContext;
 
         private DiscordSocketClient _discordClient;
 
@@ -34,6 +37,11 @@ namespace Beef {
 
             _presentationManager = new PresentationManager(_config, _exePath + "/Backups");
             _userManager = new BeefUserConfigManager(_exePath + "/Users");
+
+            if (SynchronizationContext.Current == null || !(SynchronizationContext.Current is DispatcherSynchronizationContext)) {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
+            }
+            _mainContext = SynchronizationContext.Current as DispatcherSynchronizationContext;
 
             _mmrReader = new MmrReader.MmrReader(_config.MmrReaderConfig);
             _mmrReader.StartThread(this, this);
@@ -495,7 +503,7 @@ namespace Beef {
                     tasks.Add(channel.SendMessageAsync(message));
                 }
             }
-
+            
             foreach (Task task in tasks)
                 task.GetAwaiter().GetResult();
         }
@@ -559,14 +567,22 @@ namespace Beef {
             List<ProfileInfo> profileInfoList = new List<ProfileInfo>();
 
             foreach (BeefUserConfig user in users) {
-                profileInfoList.Add(user.ProfileInfo);
+                if (user.ProfileInfo != null)
+                    profileInfoList.Add(user.ProfileInfo);
             }
             
             return profileInfoList;
         }
 
         public void OnMmrRead(List<Tuple<ProfileInfo, LadderInfo>> mmrList) {
-            Console.WriteLine("Temp: read some mmr");
+            long threadId = Thread.CurrentThread.ManagedThreadId;
+            _mainContext.Post((_) => {
+                long newThreadId = Thread.CurrentThread.ManagedThreadId;
+                Console.WriteLine($"Read MMR. OldThread = {threadId}, Posted thread = {newThreadId}.  Users:");
+                foreach (Tuple<ProfileInfo, LadderInfo> entry in mmrList) {
+                    Console.WriteLine(entry.Item2.Mmr);
+                }
+            }, null);
         }
     }
 }
