@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Web.Script.Serialization;
 
 namespace Beef {
@@ -126,6 +127,26 @@ namespace Beef {
         }
 
         /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="beefName"></param>
+        /// <param name="battleNetAccountUrl">A URL to a SC2 Battle.net account of the form https://starcraft2.com/en-gb/profile/[region]/[realm]/[profileId]</param>
+        /// <returns></returns>
+        public ErrorCode LinkUserToBattleNetAccount(String beefName, String battleNetAccountUrl) {
+            ProfileInfo info = ParseBattleNetAccountUrl(battleNetAccountUrl);
+            if (info == null)
+                return ErrorCode.InvalidBattleNetUrlFormat;
+
+            lock (_userConfigsLock) {
+                BeefUserConfig user = _userNameToBeefConfigMap[beefName];
+                user.ProfileInfo = info;
+                WriteBeefUserToFile(user, GetBeefUserFilePath(user.BeefName));
+            }
+
+            return ErrorCode.Success;
+        }
+
+        /// <summary>
         /// Registers the given user information with the ladder.
         /// </summary>
         /// <param name="beefName">The name that will appear on the ladder itself.  This must be unique.</param>
@@ -148,34 +169,7 @@ namespace Beef {
                 return ErrorCode.BeefFileAlreadyExists;
 
             BeefUserConfig config = new BeefUserConfig(beefName, discordName);
-            JavaScriptSerializer serializer = new JavaScriptSerializer();
-            String configString = null;
-            try {
-                configString = serializer.Serialize(config);
-            } catch (Exception ex) {
-                Console.WriteLine("Could not serialize the given config.");
-                Console.WriteLine("Exception: " + ex.Message);
-                if (ex.InnerException != null) {
-                    Console.WriteLine("Inner Exception: " + ex.InnerException.Message);
-                }
-
-                return ErrorCode.BeefFileCouldNotSerialize;
-            }
-
-            configString = JsonUtil.PoorMansJsonFormat(configString);
-
-            // Write it to a file
-            try {
-                File.WriteAllText(filePath, configString);
-            } catch (Exception ex) {
-                Console.WriteLine("Could not write the BeefUserConfig file to " + filePath);
-                Console.WriteLine("Exception: " + ex.Message);
-                if (ex.InnerException != null) {
-                    Console.WriteLine("Inner Exception: " + ex.InnerException.Message);
-                }
-
-                return ErrorCode.BeefFileCouldNotWriteFile;
-            }
+            ErrorCode code = WriteBeefUserToFile(config, filePath);
 
             // Add them to the maps
             lock (_userConfigsLock) {
@@ -295,6 +289,89 @@ namespace Beef {
             char[] items = new char[_invalidCharacters.Count];
             _invalidCharacters.CopyTo(items);
             return items;
+        }
+
+        /// <summary>
+        /// Parses the given profile URL.
+        /// </summary>
+        /// <param name="url">The URL to parse.  Should be of the form https://starcraft2.com/en-gb/profile/[region]/[realm]/[profileId] </param>
+        /// <returns>The generated profile info or null if the link wasn't the right format.</returns>
+        private ProfileInfo ParseBattleNetAccountUrl(String url) {
+            String[] regionIdMap = new String[] { "", "US", "EU", "KO", "", "CN" };
+            const String ladderIdRegex = "\\/profile\\/([0-9]{1})\\/([0-9]{1})\\/([0-9]*)";
+            Match match = Regex.Match(url, ladderIdRegex, RegexOptions.None, new TimeSpan(0, 0, 5));
+            if (match.Success) {
+                // There should be 4 groups (3 + the full match at [0])
+                if (match.Groups.Count != 4)
+                    return null;
+
+                long regionId = -1;
+                if (!long.TryParse(match.Groups[1].Value, out regionId))
+                    return null;
+                if (regionId >= regionIdMap.Length) {
+                    Console.WriteLine("Unknown RegionId in the URL: " + regionId);
+                    return null;
+                }
+
+                int realmId = -1;
+                if (!int.TryParse(match.Groups[2].Value, out realmId))
+                    return null;
+
+                long profileId = -1;
+                if (!long.TryParse(match.Groups[3].Value, out profileId))
+                    return null;
+
+                // Fill out the config
+                ProfileInfo info = new ProfileInfo(
+                    regionIdMap[regionId],
+                    realmId,
+                    profileId
+                );
+
+                return info;
+            } else {
+                // No matches found - the URL is probably not formatted correctly
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Writes the given beef user config to the given file.
+        /// </summary>
+        /// <param name="userConfig">The user config to write</param>
+        /// <param name="filePath">The file path to write to.</param>
+        /// <returns>Returns ErrorCode.Success or an error if there was a problem.</returns>
+        private ErrorCode WriteBeefUserToFile(BeefUserConfig userConfig, String filePath) {
+            JavaScriptSerializer serializer = new JavaScriptSerializer();
+            String configString = null;
+            try {
+                configString = serializer.Serialize(userConfig);
+            } catch (Exception ex) {
+                Console.WriteLine("Could not serialize the given config.");
+                Console.WriteLine("Exception: " + ex.Message);
+                if (ex.InnerException != null) {
+                    Console.WriteLine("Inner Exception: " + ex.InnerException.Message);
+                }
+
+                return ErrorCode.BeefFileCouldNotSerialize;
+            }
+
+            configString = JsonUtil.PoorMansJsonFormat(configString);
+
+            // Write it to a file
+            try {
+                File.WriteAllText(filePath, configString);
+            } catch (Exception ex) {
+                Console.WriteLine("Could not write the BeefUserConfig file to " + filePath);
+                Console.WriteLine("Exception: " + ex.Message);
+                if (ex.InnerException != null) {
+                    Console.WriteLine("Inner Exception: " + ex.InnerException.Message);
+                }
+
+                return ErrorCode.BeefFileCouldNotWriteFile;
+            }
+
+            return ErrorCode.Success;
         }
     }
 }

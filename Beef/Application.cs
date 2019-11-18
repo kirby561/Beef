@@ -173,6 +173,32 @@ namespace Beef {
                         MessageChannel(channel, "Uh, that's not how this command is used.  No wonder people talk about you when you're not around.  Try **" + _botPrefix + "beef help**").GetAwaiter().GetResult();
                         return;
                     }
+                } else if (arguments[1] == "link") {
+                    if (!IsLeader(author)) {
+                        MessageChannel(channel, "You don't have permission to do that.").GetAwaiter().GetResult();
+                        return;
+                    }
+
+                    if (arguments.Length == 4) {
+                        String beefName = arguments[2];
+                        String battleNetAccountUrl = arguments[3];
+
+                        // Make sure it doesn't exist
+                        BeefUserConfig existingUser = _userManager.GetUserByName(beefName);
+                        if (existingUser == null) {
+                            MessageChannel(channel, $"No user by the name of **{beefName}** found.").GetAwaiter().GetResult();
+                            return;
+                        }
+                        
+                        // Ok everything seems legit
+                        code = _userManager.LinkUserToBattleNetAccount(beefName, battleNetAccountUrl);
+
+                        if (code.Ok())
+                            MessageChannel(channel, "Linked **" + beefName + "** to account **" + battleNetAccountUrl + "**.").GetAwaiter().GetResult();
+                    } else {
+                        MessageChannel(channel, "You weren't even close.  Try **" + _botPrefix + "beef help**").GetAwaiter().GetResult();
+                        return;
+                    }
                 } else if (arguments[1] == "users") {
                     bool sendToAll = arguments.Length == 3 && arguments[2] == "all";
                     List<BeefUserConfig> users = _userManager.GetUsers();
@@ -580,7 +606,11 @@ namespace Beef {
                 long newThreadId = Thread.CurrentThread.ManagedThreadId;
                 Console.WriteLine($"Read MMR. OldThread = {threadId}, Posted thread = {newThreadId}.  Users:");
                 foreach (Tuple<ProfileInfo, LadderInfo> entry in mmrList) {
-                    Console.WriteLine(entry.Item2.Mmr);
+                    if (entry.Item2 != null)
+                        Console.WriteLine(entry.Item1.ProfileId + ": " + entry.Item2.Mmr + " as " + entry.Item2.Race);
+                    else {
+                        Console.WriteLine(entry.Item1.ProfileId + ": " + "No ladder info");
+                    }
                 }
             }, null);
         }

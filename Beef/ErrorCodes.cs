@@ -47,6 +47,9 @@ namespace Beef {
         BeefFileCouldNotWriteFile,
         CouldNotDeleteFile,
 
+        // Linking
+        InvalidBattleNetUrlFormat,
+
     }
 
     public static class ErrorCodeMethods {
