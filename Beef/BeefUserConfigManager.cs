@@ -127,11 +127,11 @@ namespace Beef {
         }
 
         /// <summary>
-        /// 
+        /// Links the given beef name to the given battle.net account.
         /// </summary>
-        /// <param name="beefName"></param>
+        /// <param name="beefName">The beef name to link.</param>
         /// <param name="battleNetAccountUrl">A URL to a SC2 Battle.net account of the form https://starcraft2.com/en-gb/profile/[region]/[realm]/[profileId]</param>
-        /// <returns></returns>
+        /// <returns>Returns ErrorCode.Success if everything was ok or an error otherwise.</returns>
         public ErrorCode LinkUserToBattleNetAccount(String beefName, String battleNetAccountUrl) {
             ProfileInfo info = ParseBattleNetAccountUrl(battleNetAccountUrl);
             if (info == null)
@@ -140,6 +140,21 @@ namespace Beef {
             lock (_userConfigsLock) {
                 BeefUserConfig user = _userNameToBeefConfigMap[beefName];
                 user.ProfileInfo = info;
+                WriteBeefUserToFile(user, GetBeefUserFilePath(user.BeefName));
+            }
+
+            return ErrorCode.Success;
+        }
+
+        /// <summary>
+        /// Unlinks the Battle.net account from the given beefName.
+        /// </summary>
+        /// <param name="beefName">The name to unlink the battle.net account from.</param>
+        /// <returns>Returns ErrorCode.Success if everything was ok or an error otherwise.</returns>
+        public ErrorCode UnlinkUserFromBattleNetAccount(String beefName) {
+            lock (_userConfigsLock) {
+                BeefUserConfig user = _userNameToBeefConfigMap[beefName];
+                user.ProfileInfo = null;
                 WriteBeefUserToFile(user, GetBeefUserFilePath(user.BeefName));
             }
 
@@ -297,7 +312,6 @@ namespace Beef {
         /// <param name="url">The URL to parse.  Should be of the form https://starcraft2.com/en-gb/profile/[region]/[realm]/[profileId] </param>
         /// <returns>The generated profile info or null if the link wasn't the right format.</returns>
         private ProfileInfo ParseBattleNetAccountUrl(String url) {
-            String[] regionIdMap = new String[] { "", "US", "EU", "KO", "", "CN" };
             const String ladderIdRegex = "\\/profile\\/([0-9]{1})\\/([0-9]{1})\\/([0-9]*)";
             Match match = Regex.Match(url, ladderIdRegex, RegexOptions.None, new TimeSpan(0, 0, 5));
             if (match.Success) {
@@ -308,7 +322,7 @@ namespace Beef {
                 long regionId = -1;
                 if (!long.TryParse(match.Groups[1].Value, out regionId))
                     return null;
-                if (regionId >= regionIdMap.Length) {
+                if (regionId >= ProfileInfo.RegionIdMap.Length) {
                     Console.WriteLine("Unknown RegionId in the URL: " + regionId);
                     return null;
                 }
@@ -323,7 +337,7 @@ namespace Beef {
 
                 // Fill out the config
                 ProfileInfo info = new ProfileInfo(
-                    regionIdMap[regionId],
+                    ProfileInfo.RegionIdMap[regionId],
                     realmId,
                     profileId
                 );

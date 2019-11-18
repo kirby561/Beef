@@ -199,6 +199,33 @@ namespace Beef {
                         MessageChannel(channel, "You weren't even close.  Try **" + _botPrefix + "beef help**").GetAwaiter().GetResult();
                         return;
                     }
+                } else if (arguments[1] == "unlink") {
+                    if (!IsLeader(author)) {
+                        MessageChannel(channel, "You don't have permission to do that.").GetAwaiter().GetResult();
+                        return;
+                    }
+
+                    if (arguments.Length == 3) {
+                        String beefName = arguments[2];
+
+                        // Make sure it doesn't exist
+                        BeefUserConfig existingUser = _userManager.GetUserByName(beefName);
+                        if (existingUser == null) {
+                            MessageChannel(channel, $"No user by the name of **{beefName}** found.").GetAwaiter().GetResult();
+                            return;
+                        }
+
+                        String battleNetAccountUrl = existingUser.ProfileInfo.GetBattleNetAccountUrl();
+
+                        // Ok everything seems legit
+                        code = _userManager.UnlinkUserFromBattleNetAccount(beefName);
+
+                        if (code.Ok())
+                            MessageChannel(channel, "Unlinked **" + beefName + "** from account **" + battleNetAccountUrl + "**.").GetAwaiter().GetResult();
+                    } else {
+                        MessageChannel(channel, "You weren't even close.  Try **" + _botPrefix + "beef help**").GetAwaiter().GetResult();
+                        return;
+                    }
                 } else if (arguments[1] == "users") {
                     bool sendToAll = arguments.Length == 3 && arguments[2] == "all";
                     List<BeefUserConfig> users = _userManager.GetUsers();
