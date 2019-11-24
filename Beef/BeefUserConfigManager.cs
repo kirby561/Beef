@@ -387,5 +387,17 @@ namespace Beef {
 
             return ErrorCode.Success;
         }
+
+        public BeefUserConfig GetUserByProfileId(long profileId) {
+            // Slow implementation for the moment
+            lock (_userConfigsLock) {
+                foreach (BeefUserConfig user in _beefUserConfigs) {
+                    if (user.ProfileInfo != null && user.ProfileInfo.ProfileId == profileId)
+                        return user;
+                }
+            }
+
+            return null;
+        }
     }
 }

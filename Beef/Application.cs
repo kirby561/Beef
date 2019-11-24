@@ -628,10 +628,27 @@ namespace Beef {
         }
 
         public void OnMmrRead(List<Tuple<ProfileInfo, LadderInfo>> mmrList) {
-            long threadId = Thread.CurrentThread.ManagedThreadId;
             _mainContext.Post((_) => {
-                long newThreadId = Thread.CurrentThread.ManagedThreadId;
-                Console.WriteLine($"Read MMR. OldThread = {threadId}, Posted thread = {newThreadId}.  Users:");
+                if (!_presentationManager.Authenticate().Ok()) {
+                    Console.WriteLine("Could not authenticate when reading MMR.");
+                    return;
+                }
+
+                // Make the list a dictionary so we can quickly lookup MMR
+                var profileIdToMaxMmrDict = new Dictionary<String, Tuple<ProfileInfo, LadderInfo>>();
+                foreach (Tuple<ProfileInfo, LadderInfo> entry in mmrList) {
+                    BeefUserConfig user = _userManager.GetUserByProfileId(entry.Item1.ProfileId);
+
+                    // If the user was removed they can be null
+                    if (user == null)
+                        continue;
+
+                    profileIdToMaxMmrDict.Add(user.BeefName, entry);
+                }
+
+                _presentationManager.UpdateMmrDictionary(profileIdToMaxMmrDict);
+
+                Console.WriteLine($"Read MMR.  Users:");
                 foreach (Tuple<ProfileInfo, LadderInfo> entry in mmrList) {
                     if (entry.Item2 != null)
                         Console.WriteLine(entry.Item1.ProfileId + ": " + entry.Item2.Mmr + " as " + entry.Item2.Race);

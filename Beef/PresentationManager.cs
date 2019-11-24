@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using System.Threading;
+using Beef.MmrReader;
 
 namespace Beef {
     /// <summary>
@@ -28,6 +29,7 @@ namespace Beef {
         private Presentation _presentation;
         private IList<Request> _requestList = new List<Request>();
         private BackupManager _backupManager;
+        private Dictionary<String, Tuple<ProfileInfo, LadderInfo>> _mmrDictionary;
 
         public PresentationManager(BeefConfig config, String backupLocation) {
             _credentialFile = config.GoogleApiCredentialFile;
@@ -432,19 +434,28 @@ namespace Beef {
                         IList<PageElement> children = element.ElementGroup.Children;
                         if (children[1]?.Shape?.Text?.TextElements?.Count > 0) {
                             IList<TextElement> textElements = children[1].Shape.Text.TextElements;
-                            String numberInBeefStr = GetStringFromElements(textElements);
+                            String numberInBeefStrElements = GetStringFromElements(textElements);
+                            String[] beefNumberParts = numberInBeefStrElements.Split('\n');
+                            if (beefNumberParts == null || beefNumberParts.Length == 0)
+                                continue;
+
+                            String numberInBeefStr = beefNumberParts[0].Trim();
+
                             int rank = -1;
                             if (Int32.TryParse(numberInBeefStr, out rank)) {
                                 // We have the number, now get the player name, if any
                                 if (children[0]?.Shape != null) {
                                     IList<TextElement> playerElements = children[0].Shape?.Text?.TextElements;
-                                    String playerName = GetStringFromElements(playerElements);
-
-                                    var entry = new BeefEntry();
-                                    entry.ObjectId = children[0].ObjectId;
-                                    entry.PlayerName = playerName;
-                                    entry.PlayerRank = rank;
-                                    _entries.Add(entry);
+                                    String playerEntry = GetStringFromElements(playerElements);
+                                    String[] lines = playerEntry.Split('\n');
+                                    if (lines?.Length > 0) {
+                                        String playerName = lines[0];
+                                        var entry = new BeefEntry();
+                                        entry.ObjectId = children[0].ObjectId;
+                                        entry.PlayerName = playerName;
+                                        entry.PlayerRank = rank;
+                                        _entries.Add(entry);
+                                    }
                                 }
                             }
                         }
@@ -463,7 +474,7 @@ namespace Beef {
         /// Submits all the queued requests in one batch and indicates if it succeeded or not.
         /// </summary>
         /// <param name="backup">True to backup before running the commands. False otherwise.</param>
-        /// <returns>Returns true if it succeeded, false otherwise.  (TODO: Make it actually return false if it fails)</returns>
+        /// <returns>Returns ErrorCode.Success if it succeeded, or an error code otherwise.  (TODO: Make it actually return an error if it fails)</returns>
         public ErrorCode SubmitRequests(bool backup = true) {
             // Backup first
             if (backup)
@@ -477,6 +488,57 @@ namespace Beef {
 
             // ?? TODO: How to detect an error here?
             _requestList.Clear();
+            return ErrorCode.Success;
+        }
+
+        /// <summary>
+        /// Sets the dictionary to use to lookup player mmr and race.  Updates the bracket when set.
+        /// </summary>
+        /// <param name="dictionary">A dictionary mapping Beef Name to their corresponding best ladder and profile info.</param>
+        /// <returns>Returns</returns>
+        public ErrorCode UpdateMmrDictionary(Dictionary<String, Tuple<ProfileInfo, LadderInfo>> dictionary) {
+            _mmrDictionary = dictionary;
+            
+            // Make sure we have the latest names
+            List<BeefEntry> currentBracket = ReadBracket();
+
+            // Make the list of changes
+            for (int i = 0; i < currentBracket.Count; i++) {
+                BeefEntry entry = currentBracket[i];
+                String mmr = "";
+                String race = "";
+                String bracketString = entry.PlayerName;
+                if (_mmrDictionary.ContainsKey(entry.PlayerName)) {
+                    LadderInfo ladderInfo = _mmrDictionary[entry.PlayerName].Item2;
+                    if (ladderInfo != null) {
+                        mmr = ladderInfo.Mmr;
+                        race = ladderInfo.Race;
+                    }
+                }
+
+                if (mmr != "" || race != "") {
+                    bracketString += "\n";
+                    if (race != "")
+                        bracketString += race + " ";
+                    bracketString += mmr;
+                }
+
+                AddDeleteRequest(entry);
+                AddInsertRequest(entry, bracketString);
+
+                // Bold the name if there's an MMR too
+                int newLineIndex = bracketString.IndexOf("\n");
+                if (newLineIndex >= 0) {
+                    AddBoldRequest(entry, true, 0, newLineIndex);
+                    AddBoldRequest(entry, false, newLineIndex, bracketString.Length);
+                }
+            }
+
+            // Update
+            ErrorCode code = SubmitRequests(false);
+            if (!code.Ok())
+                return code;
+
             return ErrorCode.Success;
         }
 
@@ -511,7 +573,27 @@ namespace Beef {
 
             var actualRequest = new Request();
             actualRequest.InsertText = insertRequest;
-            _requestList.Add(actualRequest);            
+            _requestList.Add(actualRequest);
+        }
+
+        private void AddBoldRequest(BeefEntry entry, bool bold, int startIndex, int endIndex) {
+            UpdateTextStyleRequest boldRequest = new UpdateTextStyleRequest();
+            boldRequest.ObjectId = entry.ObjectId;
+            boldRequest.Fields = "bold";
+            Range textRange = new Range();
+            textRange.Type = "FIXED_RANGE";
+            textRange.StartIndex = startIndex;
+            textRange.EndIndex = endIndex;
+            boldRequest.TextRange = textRange;
+
+            TextStyle boldStyle = new TextStyle();
+            boldStyle.Bold = bold;
+
+            boldRequest.Style = boldStyle;
+
+            var actualRequest = new Request();
+            actualRequest.UpdateTextStyle = boldRequest;
+            _requestList.Add(actualRequest);
         }
         
         /// <summary>
@@ -527,7 +609,7 @@ namespace Beef {
             // Combine all the elments.  Player names can't be too complicated so it's most likely white space anyway.
             String result = "";
             foreach (TextElement element in elements) {
-                String content = element?.TextRun?.Content?.Trim();
+                String content = element?.TextRun?.Content;
                 if (content != null)
                     result += content;
             }
