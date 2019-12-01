@@ -234,7 +234,13 @@ namespace Beef {
                     if (users.Count > 0) {
                         userList = "";
                         foreach (BeefUserConfig config in users) {
-                            userList += config.BeefName + " -> " + config.DiscordName + "\n";
+                            userList += config.BeefName + " -> " + config.DiscordName;
+
+                            if (config.ProfileInfo != null) {
+                                userList += " -> <" + config.ProfileInfo.GetBattleNetAccountUrl() + ">\n";
+                            } else {
+                                userList += "\n";
+                            }
                         }
                         userList.Remove(userList.Length - 1, 1); // Remove the last "\n"
                     } else {
@@ -267,6 +273,7 @@ namespace Beef {
 
                     BeefUserConfig challengedConfig = null;
                     String challengedDiscordOrBeefName = arguments[2];
+
                     if (challengedDiscordOrBeefName.Contains("#")) {
                         challengedConfig = _userManager.GetUserByDiscordId(challengedDiscordOrBeefName);
                     } else {
@@ -439,6 +446,8 @@ namespace Beef {
                         help += "\t **%beef% remove _<PlayerOrRank>_** - Removes the given player or rank from the ladder..\n";
                         help += "\t **%beef% register <PlayerLadderName> <PlayerDiscordName#1234>** - Registers the given ladder name with the given discord name for use with the challenge command.\n";
                         help += "\t **%beef% unregister <PlayerLadderName>** - Unregisters the given ladder name.\n";
+                        help += "\t **%beef% link <PlayerLadderName> <PlayerBattleNetProfileLink>** - Links the given ladder name to the given Battle.net profile link.  This will enable their best MMR and race to be displayed on the ladder.\n";
+                        help += "\t **%beef% unlink <PlayerLadderName>** - Unlinks the given ladder name from their associated Battle.net Profile.\n";
                         help += "\t **%beef% undo** - Undoes the last change to the ladder (renames, wins, etc..).\n";
                         help += "\t **%beef% version** - Prints the version of BeefBot\n";
                         help = help.Replace("%beef%", _botPrefix + "beef");

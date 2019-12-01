@@ -50,6 +50,9 @@ namespace Beef {
         // Linking
         InvalidBattleNetUrlFormat,
 
+        // Presentation API
+        RequestException,
+
     }
 
     public static class ErrorCodeMethods {

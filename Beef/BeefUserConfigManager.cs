@@ -168,29 +168,37 @@ namespace Beef {
         /// <param name="discordName">The discord name to associate with the beef name.</param>
         /// <returns>Returns success if it was successful or an error code if not.</returns>
         public ErrorCode RegisterUser(String beefName, String discordName) {
+            return RegisterUser(new BeefUserConfig(beefName, discordName));
+        }
+
+        /// <summary>
+        /// Registers the given user information with the ladder.
+        /// </summary>
+        /// <param name="userConfig">A BeefUserConfig containing the information for the player to register.</param>
+        /// <returns>Returns success if it was successful or an error code if not.</returns>
+        public ErrorCode RegisterUser(BeefUserConfig userConfig) {
             lock (_userConfigsLock) {
-                if (_discordNameBeefConfigMap.ContainsKey(discordName))
+                if (_discordNameBeefConfigMap.ContainsKey(userConfig.DiscordName))
                     return ErrorCode.DiscordNameExists;
 
-                if (_userNameToBeefConfigMap.ContainsKey(beefName))
+                if (_userNameToBeefConfigMap.ContainsKey(userConfig.BeefName))
                     return ErrorCode.BeefNameAlreadyExists;
 
-                if (ContainsInvalidCharacters(beefName))
+                if (ContainsInvalidCharacters(userConfig.BeefName))
                     return ErrorCode.BeefNameContainsInvalidCharacters;
             }
 
-            String filePath = GetBeefUserFilePath(beefName);
+            String filePath = GetBeefUserFilePath(userConfig.BeefName);
             if (File.Exists(filePath))
                 return ErrorCode.BeefFileAlreadyExists;
-
-            BeefUserConfig config = new BeefUserConfig(beefName, discordName);
-            ErrorCode code = WriteBeefUserToFile(config, filePath);
+            
+            ErrorCode code = WriteBeefUserToFile(userConfig, filePath);
 
             // Add them to the maps
             lock (_userConfigsLock) {
-                _beefUserConfigs.Add(config);
-                _userNameToBeefConfigMap.Add(config.BeefName, config);
-                _discordNameBeefConfigMap.Add(config.DiscordName, config);
+                _beefUserConfigs.Add(userConfig);
+                _userNameToBeefConfigMap.Add(userConfig.BeefName, userConfig);
+                _discordNameBeefConfigMap.Add(userConfig.DiscordName, userConfig);
             }
 
             return ErrorCode.Success;
@@ -255,17 +263,22 @@ namespace Beef {
         /// <param name="newDiscordName">The new discord name to give them.</param>
         /// <returns>Returns success if it was successful or an error code if it wasn't.</returns>
         public ErrorCode ModifyUser(String existingBeefName, String newBeefName, String newDiscordName) {
+            BeefUserConfig existingUser = null;
             lock (_userConfigsLock) {
                 if (!_userNameToBeefConfigMap.ContainsKey(existingBeefName)) {
                     return ErrorCode.NoExistingPlayerByThatName;
                 }
+
+                // Grab their info
+                existingUser = new BeefUserConfig(_userNameToBeefConfigMap[existingBeefName]);
+                existingUser.BeefName = newBeefName;
             }
 
             ErrorCode result = DeleteUser(existingBeefName);
             if (!result.Ok())
                 return result;
 
-            return RegisterUser(newBeefName, newDiscordName);
+            return RegisterUser(existingUser);
         }
 
         /// <summary>
