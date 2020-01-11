@@ -7,10 +7,10 @@ namespace Beef {
     /// </summary>
     public class BeefConfig {
         // This is the current version and should always be incremented when changing the config file format.
-        public static int ReaderConfigVersion = 0;  
+        public static int ReaderConfigVersion = 1;  
 
         // Version
-        public int Version { get; set; } = 0;          // This identifies the version of the config file.
+        public int Version { get; set; } = ReaderConfigVersion;          // This identifies the version of the config file.
 
         // Discord stuff
         public String DiscordBotToken { get; set; } = "";
@@ -23,6 +23,8 @@ namespace Beef {
         public String GoogleApiApplicationName { get; set; } = "";
         public String BeefLadderLink { get; set; } = ""; // This is separate from the presentation ID because you need the readonly link.
 
+        public ReaderConfig MmrReaderConfig { get; set; } = ReaderConfig.CreateDefault();
+
         /// <summary>
         /// Creates a ReaderConfig with default settings.
         /// </summary>
@@ -30,7 +32,6 @@ namespace Beef {
         public static BeefConfig CreateDefault() {
             // Fill out the default settings and version
             BeefConfig config = new BeefConfig();
-            config.Version = ReaderConfigVersion;
             
             // The credentials are left blank and need to be filled out after
             return config;

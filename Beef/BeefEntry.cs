@@ -13,5 +13,15 @@ namespace Beef {
                 return 0;
             return 1;
         }
+
+        public BeefEntry() {
+            // Nothing to do
+        }
+
+        public BeefEntry(BeefEntry other) {
+            ObjectId = other.ObjectId;
+            PlayerName = other.PlayerName;
+            PlayerRank = other.PlayerRank;
+        }
     }
 }

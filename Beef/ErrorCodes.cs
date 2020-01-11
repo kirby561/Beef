@@ -24,6 +24,7 @@ namespace Beef {
 
         // Renaming/Removing
         NoExistingPlayerByThatName,
+        DuplicatePlayerNameWhenRenaming,
 
         // Removing
         RankNotOnLadder,
@@ -35,6 +36,23 @@ namespace Beef {
 
         // Commands
         CommandNotRecognized,
+
+        // Registration
+        DiscordNameExists,
+        BeefNameAlreadyExists,
+        BeefNameDoesNotExist,
+        BeefNameContainsInvalidCharacters,
+        BeefFileAlreadyExists, // This shouldnt happen if there isn't also a name collision.
+        BeefFileCouldNotSerialize, // What??
+        BeefFileCouldNotWriteFile,
+        CouldNotDeleteFile,
+
+        // Linking
+        InvalidBattleNetUrlFormat,
+
+        // Presentation API
+        RequestException,
+
     }
 
     public static class ErrorCodeMethods {
@@ -42,7 +60,7 @@ namespace Beef {
             return code == ErrorCode.Success;
         }
 
-        public static String GetUserMessage(this ErrorCode code) {
+        public static String GetUserMessage(this ErrorCode code, String botPrefix) {
             switch (code) {
                 case ErrorCode.Success: 
                     return "All good.";
@@ -66,6 +84,8 @@ namespace Beef {
                     return "That loser isn't even on the ladder.  Is this the level of proficiency you have in other things in life too?";
                 case ErrorCode.NoExistingPlayerByThatName:
                     return "How can I rename a player that doesn't exist?  Seriously, check the ladder.  That name's not on it.";
+                case ErrorCode.DuplicatePlayerNameWhenRenaming:
+                    return "There's already a player with that name on the ladder.  I bet it's you.  You're so bad you want there to be some ambiguity when you lose.";
                 case ErrorCode.RankNotOnLadder:
                     return "Someone can't read numbers.  Pick a rank that actually is on the ladder.";
                 case ErrorCode.NothingToUndo:
@@ -73,9 +93,25 @@ namespace Beef {
                 case ErrorCode.LadderDifferentSize:
                     return "Okok I'll give.  This one is my bad.  I can't restore a backup that's a different size than the current ladder because that's way too much work.";
                 case ErrorCode.CommandNotRecognized:
-                    return "Not a command bro.  Try \"**.beef help**\" so you have some clue what you're doing next time.";
+                    return "Not a command bro.  Try \"**" + botPrefix + "beef help**\" so you have some clue what you're doing next time.";
                 case ErrorCode.CouldNotRevertBackupFile:
                     return "There was a problem moving the undone backup file to the archive.  This indicates a problem with the file system.";
+                case ErrorCode.DiscordNameExists:
+                    return "That discord name is already registered.";
+                case ErrorCode.BeefNameAlreadyExists:
+                    return "That beef name is already registered.";
+                case ErrorCode.BeefFileAlreadyExists:
+                    return "The beef file already exists!";
+                case ErrorCode.BeefNameDoesNotExist:
+                    return "That beef name does not exist.";
+                case ErrorCode.BeefNameContainsInvalidCharacters:
+                    return "That beef name contains invalid characters!";
+                case ErrorCode.BeefFileCouldNotSerialize:
+                    return "I couldn't serialize the beef file.";
+                case ErrorCode.BeefFileCouldNotWriteFile:
+                    return "I couldn't write the beef file for some reason!";
+                case ErrorCode.CouldNotDeleteFile:
+                    return "I couldn't delete the file for some reason!";
                 default:
                     return "Well I don't know what happened but it can't be good.";
             }
