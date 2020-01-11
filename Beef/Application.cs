@@ -10,7 +10,7 @@ using System.Windows.Threading;
 
 namespace Beef {
     class Application : ProfileInfoProvider, MmrListener {
-        private readonly String _version = "1.3";
+        private readonly String _version = "1.4";
         private BeefConfig _config;
         private String _botPrefix;
         private BeefUserConfigManager _userManager;
@@ -193,6 +193,9 @@ namespace Beef {
                         // Ok everything seems legit
                         code = _userManager.LinkUserToBattleNetAccount(beefName, battleNetAccountUrl);
 
+                        // Do an immediate update so the player can see their mmr right away
+                        _mmrReader.RequestUpdate();
+
                         if (code.Ok())
                             MessageChannel(channel, "Linked **" + beefName + "** to account **" + battleNetAccountUrl + "**.").GetAwaiter().GetResult();
                     } else {
@@ -219,6 +222,9 @@ namespace Beef {
 
                         // Ok everything seems legit
                         code = _userManager.UnlinkUserFromBattleNetAccount(beefName);
+
+                        // Do an immediate update so the update is seen right away
+                        _mmrReader.RequestUpdate();
 
                         if (code.Ok())
                             MessageChannel(channel, "Unlinked **" + beefName + "** from account **" + battleNetAccountUrl + "**.").GetAwaiter().GetResult();
@@ -525,9 +531,6 @@ namespace Beef {
         }
 
         private void IssueBeefChallenge(BeefUserConfig challenger, BeefUserConfig challenged) {
-            // MessageBeefChannels();
-            //Console.WriteLine(message);
-
             IReadOnlyCollection<SocketGuild> guilds = _discordClient.Guilds;
 
             // Find the bot

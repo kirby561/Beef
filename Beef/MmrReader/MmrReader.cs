@@ -34,6 +34,7 @@ namespace Beef.MmrReader {
         private HttpClient _httpClient = new HttpClient();
         private JavaScriptSerializer _jsonSerializer = new JavaScriptSerializer();
         private String _accessCacheFile;
+        private bool _manualUpdateRequested = false; // Requests 1 update immediately instead of waiting the remaining time.
 
         // Interface
         private ProfileInfoProvider _profileInfoProvider;
@@ -76,6 +77,11 @@ namespace Beef.MmrReader {
         /// <param name="nextRefreshTimeMs">The unix time of the next refresh in milliseconds.</param>
         /// <returns>Returns the number of milliseconds until the next refresh or 0 if it should refresh now.</returns>
         private long GetTimeToNextRefresh(long nextRefreshTimeMs) {
+            if (_manualUpdateRequested) {
+                _manualUpdateRequested = false;
+                return 0; // Update immediately if requested
+            }
+
             long time = nextRefreshTimeMs - GetNowInMs();
             if (time < 0)
                 time = 0;
@@ -352,10 +358,14 @@ namespace Beef.MmrReader {
         /// </summary>
         private void ReadMmrLoop() {
             long nextRefreshTimeMs = GetNowInMs();
+            bool forceRefresh = false;
             while (_shouldReadMmr) {
-                if (GetTimeToNextRefresh(nextRefreshTimeMs) == 0) {
+                if (GetTimeToNextRefresh(nextRefreshTimeMs) == 0 || forceRefresh) {
+                    Console.WriteLine("Updating MMR.");
+
                     // Set the next time
                     nextRefreshTimeMs = GetNowInMs() + _configuration.MsPerRead;
+                    forceRefresh = false;
 
                     // Do the next refresh
                     List<Tuple<ProfileInfo, LadderInfo>> nextMmrList = new List<Tuple<ProfileInfo, LadderInfo>>();
@@ -370,7 +380,10 @@ namespace Beef.MmrReader {
 
                 int timeToNextRefresh = (int)GetTimeToNextRefresh(nextRefreshTimeMs);
                 lock (_lock) {
-                    Monitor.Wait(_lock, timeToNextRefresh);
+                    if (_manualUpdateRequested)
+                        forceRefresh = true;
+                    else
+                        Monitor.Wait(_lock, timeToNextRefresh);
                 }
             }
 
@@ -412,6 +425,16 @@ namespace Beef.MmrReader {
                 } else {
                     Console.WriteLine("Thread is not running.");
                 }
+            }
+        }
+
+        /// <summary>
+        /// Requests an MMR update to happen right away.
+        /// </summary>
+        public void RequestUpdate() {
+            lock (_lock) {
+                _manualUpdateRequested = true;
+                Monitor.PulseAll(_lock);
             }
         }
     }
