@@ -358,7 +358,7 @@ namespace Beef.MmrReader {
         /// </summary>
         private void ReadMmrLoop() {
             long nextRefreshTimeMs = GetNowInMs();
-            bool forceRefresh = false;
+            bool forceRefresh = true;
             while (_shouldReadMmr) {
                 if (GetTimeToNextRefresh(nextRefreshTimeMs) == 0 || forceRefresh) {
                     Console.WriteLine("Updating MMR.");
@@ -373,6 +373,9 @@ namespace Beef.MmrReader {
                     foreach (ProfileInfo user in users) {
                         LadderInfo ladderInfo = GetBestLadderInfoFor(user);
                         nextMmrList.Add(new Tuple<ProfileInfo, LadderInfo>(user, ladderInfo));
+
+                        // We are getting error 500 a lot so try not spamming the server as much
+                        Thread.Sleep(10);
                     }
 
                     _listener.OnMmrRead(nextMmrList);

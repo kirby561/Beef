@@ -28,7 +28,7 @@ namespace Beef {
             // Fill out the default settings and version
             ReaderConfig config = new ReaderConfig();
             config.Version = ReaderConfigVersion;
-            config.MsPerRead = 50000;
+            config.MsPerRead = 600000; // 10 minutes
             config.DataDirectory = "";
 
             return config;

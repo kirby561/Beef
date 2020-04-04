@@ -339,10 +339,10 @@ namespace Beef {
                 return ErrorCode.RankNotOnLadder;
             }
 
-            playerToRemove = entries[index];
+            playerToRemove = new BeefEntry(entries[index]);
             ErrorCode result = RemovePlayer(entries, playerToRemove);
-            if (result.Ok()) {
-                playerToRemove = entries[index];
+            if (!result.Ok()) {
+                playerToRemove = null;
             }
             return result;
         }

@@ -10,7 +10,7 @@ using System.Windows.Threading;
 
 namespace Beef {
     class Application : ProfileInfoProvider, MmrListener {
-        private readonly String _version = "1.4";
+        private readonly String _version = "1.4.1";
         private BeefConfig _config;
         private String _botPrefix;
         private BeefUserConfigManager _userManager;
