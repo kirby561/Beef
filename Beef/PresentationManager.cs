@@ -297,6 +297,63 @@ namespace Beef {
         }
 
         /// <summary>
+        /// Switches the 2 players in the beef ladder.
+        /// </summary>
+        /// <param name="nameOrRank1">A rank or beef name for the first player.</param>
+        /// <param name="nameOrRank2">A rank or beef name for the second player.</param>
+        /// <param name="player1">This is set to the BeefEntry if the first player is found.</param>
+        /// <param name="player2">This is set to the BeefEntry if the second player is found.</param>
+        /// <returns>Returns success if it succeeded or an error code identifying what happened.</returns>
+        public ErrorCode SwitchPlayers(String nameOrRank1, String nameOrRank2, out BeefEntry player1, out BeefEntry player2) {
+            // Init the out params
+            player1 = null;
+            player2 = null;
+
+            List<BeefEntry> entries = ReadBracket();
+            player1 = GetBeefEntryFromNameOrRank(nameOrRank1, entries);
+            if (player1 == null) {
+                return ErrorCode.Player1DoesNotExist;
+            }
+
+            player2 = GetBeefEntryFromNameOrRank(nameOrRank2, entries);
+            if (player2 == null) {
+                return ErrorCode.Player2DoesNotExist;
+            }
+
+            return SwitchPlayers(player1, player2);
+        }
+
+        private ErrorCode SwitchPlayers(BeefEntry player1, BeefEntry player2) {
+            // Assumes the beef ladder has already been updated
+            /*
+            List<BeefEntry> newList = new List<BeefEntry>(_entries.Count);
+            for (int i = 0; i < _entries.Count; i++) {
+                if (i == (player1.PlayerRank - 1)) {
+                    newList.Add(player2);
+                } else if (i == (player2.PlayerRank - 1)) {
+                    newList.Add(player1);
+                } else {
+                    newList.Add(_entries[i]);
+                }
+            }
+
+            int player1PrevRank = player1.PlayerRank;
+            String player1PrevObjectId = player1.
+            player1.PlayerRank = player2.PlayerRank;
+            player2.PlayerRank = player1PrevRank;
+
+            return UpdatePresentationFromEntries(newList, true);
+            */
+
+            String player1Name = player1.PlayerName;
+            String player2Name = player2.PlayerName;
+            player1.PlayerName = player2Name;
+            player2.PlayerName = player1Name;
+
+            return UpdatePresentationFromEntries(_entries, true);
+        }
+
+        /// <summary>
         /// Removes the player from the ladder with the given name and shuffles everyone else down.
         /// </summary>
         /// <param name="name">The name of the player to remove.</param>
@@ -653,6 +710,33 @@ namespace Beef {
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Gets the BeefEntry corresponding to the given name or rank.
+        /// </summary>
+        /// <param name="nameOrRank">A Beef Name or rank on the ladder (RANK not INDEX)</param>
+        /// <param name="entries">The list of current entries to check</param>
+        /// <returns>Returns the entry that was found or null</returns>
+        private BeefEntry GetBeefEntryFromNameOrRank(String nameOrRank, List<BeefEntry> entries) {
+            int rank;
+            if (!int.TryParse(nameOrRank, out rank)) rank = -1;
+
+            if (rank == -1) {
+                foreach (BeefEntry entry in entries) {
+                    if (entry.PlayerName.Equals(nameOrRank)) {
+                        return entry;
+                    }
+                }
+                return null; // Not found
+            } else {
+                int index = rank - 1;
+                if (index < 0 || index >= entries.Count) {
+                    return null;
+                }
+
+                return entries[index];
+            }            
         }
     }
 }

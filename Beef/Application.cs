@@ -10,7 +10,7 @@ using System.Windows.Threading;
 
 namespace Beef {
     class Application : ProfileInfoProvider, MmrListener {
-        private readonly String _version = "1.4.1";
+        private readonly String _version = "1.5";
         private BeefConfig _config;
         private String _botPrefix;
         private BeefUserConfigManager _userManager;
@@ -355,6 +355,31 @@ namespace Beef {
 
                             MessageChannel(channel, "**" + playerOrRankToRename + "** has been renamed to **" + newName + "**").GetAwaiter().GetResult();
                         }
+                    } else if (arguments[1] == "switch") {
+                        if (!IsLeader(author)) {
+                            MessageChannel(channel, "You don't have permission to do that.").GetAwaiter().GetResult();
+                            return;
+                        }
+
+                        String playerOrRank1 = arguments[2];
+                        String playerOrRank2 = arguments[3];
+
+                        BeefEntry player1 = null;
+                        BeefEntry player2 = null;
+                        code = _presentationManager.SwitchPlayers(playerOrRank1, playerOrRank2, out player1, out player2);
+
+                        if (code.Ok()) {
+                            MessageChannel(channel, "**" + player1.PlayerName + "** has been switched with **" + player2.PlayerName + "**").GetAwaiter().GetResult();
+                        } else {
+                            if (code == ErrorCode.Player1DoesNotExist) {
+                                MessageChannel(channel, "**" + playerOrRank1 + "** isn't a valid rank or beef name.  When was the last time you had your eyes checked?").GetAwaiter().GetResult();
+                            } else if (code == ErrorCode.Player2DoesNotExist) {
+                                MessageChannel(channel, "**" + playerOrRank2 + "** isn't a valid rank or beef name.  When was the last time you had your eyes checked?").GetAwaiter().GetResult();
+                            } else {
+                                MessageChannel(channel, "Something went wrong.  I'm not sure what but I'm pretty sure it's your fault.").GetAwaiter().GetResult();
+                            }
+                            return;
+                        }
                     }
                 } else if (arguments.Length >= 2) {
                     if (arguments[1] == "version" && arguments.Length == 2) {
@@ -389,8 +414,6 @@ namespace Beef {
                             MessageChannel(channel, "Removed **" + playerToRemove + "** from the ladder.").GetAwaiter().GetResult();
                         }
                     } else if (arguments[1] == "bracket" || arguments[1] == "list" || arguments[1] == "ladder") {
-                        IsLeader(userInput.Author);
-
                         List<BeefEntry> entries = _presentationManager.ReadBracket();
 
                         if (entries.Count == 0)
@@ -405,11 +428,25 @@ namespace Beef {
                             }
                             // Send the help message to all if requested.  Otherwise
                             // just DM it to the user that asked.
-                            if (arguments.Length >= 3 && arguments[2] == "all")
+                            if (arguments.Length >= 3 && arguments[2] == "all") {
+                                if (!IsLeader(author)) {
+                                    MessageChannel(channel, "You don't have permission to do that.").GetAwaiter().GetResult();
+                                    return;
+                                }
+
                                 MessageChannel(channel, bracket).GetAwaiter().GetResult();
-                            else
+                            } else
                                 MessageUser(userInput.Author, bracket).GetAwaiter().GetResult();
                         }
+                    } else if (arguments[1].Equals("refresh")) {
+                        if (!IsLeader(author)) {
+                            MessageChannel(channel, "You don't have permission to do that.").GetAwaiter().GetResult();
+                            return;
+                        }
+
+                        _mmrReader.RequestUpdate();
+                        code = ErrorCode.Success;
+                        MessageChannel(channel, "MMR refresh requested.").GetAwaiter().GetResult();
                     } else if (arguments[1].Equals("undo")) {
                         if (!IsLeader(author)) {
                             MessageChannel(channel, "You don't have permission to do that.").GetAwaiter().GetResult();
@@ -454,6 +491,8 @@ namespace Beef {
                         help += "\t **%beef% unregister <PlayerLadderName>** - Unregisters the given ladder name.\n";
                         help += "\t **%beef% link <PlayerLadderName> <PlayerBattleNetProfileLink>** - Links the given ladder name to the given Battle.net profile link.  This will enable their best MMR and race to be displayed on the ladder.\n";
                         help += "\t **%beef% unlink <PlayerLadderName>** - Unlinks the given ladder name from their associated Battle.net Profile.\n";
+                        help += "\t **%beef% switch <PlayerOrRank> <OtherPlayerOrRank>** - Switches the two players on the ladder leaving everyone else in place.\n";
+                        help += "\t **%beef% refresh** - Requests a refresh to the MMRs for each player.  Note that this can take a minute.\n";
                         help += "\t **%beef% undo** - Undoes the last change to the ladder (renames, wins, etc..).\n";
                         help += "\t **%beef% version** - Prints the version of BeefBot\n";
                         help = help.Replace("%beef%", _botPrefix + "beef");

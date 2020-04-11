@@ -78,7 +78,6 @@ namespace Beef.MmrReader {
         /// <returns>Returns the number of milliseconds until the next refresh or 0 if it should refresh now.</returns>
         private long GetTimeToNextRefresh(long nextRefreshTimeMs) {
             if (_manualUpdateRequested) {
-                _manualUpdateRequested = false;
                 return 0; // Update immediately if requested
             }
 
@@ -383,10 +382,12 @@ namespace Beef.MmrReader {
 
                 int timeToNextRefresh = (int)GetTimeToNextRefresh(nextRefreshTimeMs);
                 lock (_lock) {
-                    if (_manualUpdateRequested)
+                    if (_manualUpdateRequested) {
                         forceRefresh = true;
-                    else
+                        _manualUpdateRequested = false;
+                    } else {
                         Monitor.Wait(_lock, timeToNextRefresh);
+                    }
                 }
             }
 

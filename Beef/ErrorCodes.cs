@@ -34,6 +34,10 @@ namespace Beef {
         LadderDifferentSize,
         CouldNotRevertBackupFile,
 
+        // Switching
+        Player1DoesNotExist,
+        Player2DoesNotExist,
+
         // Commands
         CommandNotRecognized,
 
