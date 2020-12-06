@@ -694,7 +694,10 @@ namespace Beef {
                     if (user == null)
                         continue;
 
-                    profileIdToMaxMmrDict.Add(user.BeefName, entry);
+                    if (!profileIdToMaxMmrDict.ContainsKey(user.BeefName))
+                        profileIdToMaxMmrDict.Add(user.BeefName, entry);
+                    else
+                        Console.WriteLine("Warning: User " + user.BeefName + " already exists in the profileIdToMaxMmrDict!");
                 }
 
                 _presentationManager.UpdateMmrDictionary(profileIdToMaxMmrDict);
