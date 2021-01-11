@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Beef.MmrReader;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
@@ -123,6 +124,23 @@ namespace Beef {
                 }
             } catch (KeyNotFoundException) {
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// Updates the last known ladder information for a given beef user.
+        /// </summary>
+        /// <param name="beefName">The user's beef name.</param>
+        /// <param name="ladderInfo">The ladder info for the user.</param>
+        /// <returns>Returns ErrorCode.Success if it succeeded, otherwise an error indicating the problem.</returns>
+        public ErrorCode UpdateUserLadderInfo(String beefName, LadderInfo ladderInfo) {
+            lock (_userConfigsLock) {
+                BeefUserConfig user = _userNameToBeefConfigMap[beefName];
+                user.LastKnownLeague = ladderInfo.League;
+                user.LastKnownMmr = ladderInfo.Mmr;
+                user.LastKnownMainRace = ladderInfo.Race;
+                ErrorCode error = WriteBeefUserToFile(user, GetBeefUserFilePath(user.BeefName));
+                return error;
             }
         }
 

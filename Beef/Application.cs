@@ -10,7 +10,7 @@ using System.Windows.Threading;
 
 namespace Beef {
     class Application : ProfileInfoProvider, MmrListener {
-        private readonly String _version = "1.5";
+        private readonly String _version = "1.6";
         private BeefConfig _config;
         private String _botPrefix;
         private BeefUserConfigManager _userManager;
@@ -694,8 +694,28 @@ namespace Beef {
                     if (user == null)
                         continue;
 
+                    // If the LadderInfo for a user is null, we failed to update their information.
+                    // In this case, use the last known values so they are still displayed.
+                    Tuple<ProfileInfo, LadderInfo> mmrDictionaryEntry = entry;
+                    if (entry.Item2 == null) {
+                        // Also make sure we have a previous MMR to show
+                        // If there isn't, leave it null so it displays correctly.
+                        if (!String.IsNullOrEmpty(user.LastKnownMmr)) {
+                            LadderInfo previousInfo = new LadderInfo();
+                            previousInfo.League = user.LastKnownLeague;
+                            previousInfo.Mmr = user.LastKnownMmr;
+                            previousInfo.Race = user.LastKnownMainRace;
+
+                            mmrDictionaryEntry = new Tuple<ProfileInfo, LadderInfo>(entry.Item1, previousInfo);
+                        }
+                    } else {
+                        // If the update was successful, record it for later too.
+                        // (Note: Should this be done on the MMR reading thread? Seems silly to block the main context for this.)
+                        _userManager.UpdateUserLadderInfo(user.BeefName, entry.Item2);
+                    }
+
                     if (!profileIdToMaxMmrDict.ContainsKey(user.BeefName))
-                        profileIdToMaxMmrDict.Add(user.BeefName, entry);
+                        profileIdToMaxMmrDict.Add(user.BeefName, mmrDictionaryEntry);
                     else
                         Console.WriteLine("Warning: User " + user.BeefName + " already exists in the profileIdToMaxMmrDict!");
                 }
