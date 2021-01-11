@@ -68,7 +68,13 @@ namespace Beef {
             PresentationsResource.GetRequest request = _service.Presentations.Get(_presentationId);
 
             // Prints all the beef participants
-            _presentation = request.Execute();
+            try {
+                _presentation = request.Execute();
+            } catch (Exception ex) {
+                Console.WriteLine("Error when authenticating with the presentation API.");
+                Console.WriteLine(ex.Message);
+            }
+
             if (_presentation != null)
                 return ErrorCode.Success;
 
