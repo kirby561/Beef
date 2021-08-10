@@ -10,9 +10,10 @@ using System.Windows.Threading;
 
 namespace Beef {
     class Application : ProfileInfoProvider, MmrListener {
-        private readonly String _version = "1.6";
+        private readonly String _version = "1.7.0";
         private BeefConfig _config;
         private String _botPrefix;
+        private String _beefCommand;
         private BeefUserConfigManager _userManager;
         private PresentationManager _presentationManager;
         private String[] _leaderRoles;
@@ -33,9 +34,14 @@ namespace Beef {
 
             _config = config;
             _botPrefix = config.BotPrefix;
+            _beefCommand = config.BeefCommand;
             _leaderRoles = config.LeaderRoles;
 
-            _presentationManager = new PresentationManager(_config, _exePath + "/Backups");
+            _presentationManager = new PresentationManager(
+                _config.GoogleApiPresentationId,
+                _config.GoogleApiCredentialFile,
+                _config.GoogleApiApplicationName,
+                _exePath + "/Backups");
             _userManager = new BeefUserConfigManager(_exePath + "/Users");
 
             if (SynchronizationContext.Current == null || !(SynchronizationContext.Current is DispatcherSynchronizationContext)) {
@@ -94,7 +100,8 @@ namespace Beef {
                 return;
             }
 
-            if (arguments[0] == _botPrefix + "beef") {
+            // Check for ".beef" or whatever the command is set to
+            if (arguments[0] == _botPrefix + _beefCommand) {
                 SocketUser author = userInput.Author;
                 ISocketMessageChannel channel = userInput.Channel;
                 ErrorCode code = ErrorCode.CommandNotRecognized;

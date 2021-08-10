@@ -32,11 +32,18 @@ namespace Beef {
         private BackupManager _backupManager;
         private Dictionary<String, Tuple<ProfileInfo, LadderInfo>> _mmrDictionary;
 
-        public PresentationManager(BeefConfig config, String backupLocation) {
-            _credentialFile = config.GoogleApiCredentialFile;
-            _backupManager = new BackupManager(backupLocation);
-            _presentationId = config.GoogleApiPresentationId;
-            _applicationName = config.GoogleApiApplicationName;
+        /// <summary>
+        /// Creates a PresentationManager with the given information.
+        /// </summary>
+        /// <param name="presentationId">A Google presentation ID containing a Google slide in the correct beef ladder format.</param>
+        /// <param name="credentialFile">A credential file for the Google API</param>
+        /// <param name="applicationName">The name of the Application registered with the Google API</param>
+        /// <param name="backupLocation">The location to store backups of the ladder.</param>
+        public PresentationManager(String presentationId, String credentialFile, String applicationName, String backupLocation) {
+            _presentationId = presentationId;
+            _credentialFile = credentialFile;
+            _applicationName = applicationName;
+            _backupManager = new BackupManager(backupLocation);            
         }
 
         /// <summary>
