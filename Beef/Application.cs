@@ -17,6 +17,8 @@ namespace Beef {
         private BeefUserConfigManager _userManager;
         private PresentationManager _presentationManager;
         private String[] _leaderRoles;
+        private String[] _dynamicChannels; // Names of channels that should be cloned to maintain 1 empty at all times
+        private bool _dynamicVoiceChannelsEnabled = false;
         private String _exePath;
         private MmrReader.MmrReader _mmrReader;
         private DispatcherSynchronizationContext _mainContext;
@@ -36,6 +38,7 @@ namespace Beef {
             _botPrefix = config.BotPrefix;
             _beefCommand = config.BeefCommand;
             _leaderRoles = config.LeaderRoles;
+            _dynamicChannels = config.DynamicChannels;
 
             _presentationManager = new PresentationManager(
                 _config.GoogleApiPresentationId,
@@ -87,6 +90,83 @@ namespace Beef {
             return false;
         }
 
+        private void EnableDynamicChannels() {
+            if (!_dynamicVoiceChannelsEnabled) {
+                _discordClient.UserVoiceStateUpdated += OnUserVoiceStateUpdated;
+                _dynamicVoiceChannelsEnabled = true;
+            }
+        }
+
+        private void DisableDynamicChannels() {
+            if (_dynamicVoiceChannelsEnabled) {
+                _discordClient.UserVoiceStateUpdated -= OnUserVoiceStateUpdated;
+                _dynamicVoiceChannelsEnabled = false;
+            }
+        }
+
+        private async Task OnUserVoiceStateUpdated(SocketUser user, SocketVoiceState state1, SocketVoiceState state2) {
+            await CheckDynamicChannels();
+        }
+
+        private async Task CheckDynamicChannels() {
+            if (_dynamicChannels == null)
+                return; // Dynamic channels are not configured.
+
+            List<Task> tasks = new List<Task>();
+            foreach (SocketGuild guild in _discordClient.Guilds) {
+                String[] channelNamesToCopy = _dynamicChannels;
+                List<SocketVoiceChannel>[] emptyChannels = new List<SocketVoiceChannel>[channelNamesToCopy.Length];
+                List<SocketVoiceChannel>[] occupiedChannels = new List<SocketVoiceChannel>[channelNamesToCopy.Length];
+
+                for (int channelIndex = 0; channelIndex < channelNamesToCopy.Length; channelIndex++) {
+                    occupiedChannels[channelIndex] = new List<SocketVoiceChannel>();
+                    emptyChannels[channelIndex] = new List<SocketVoiceChannel>();
+                }
+
+                foreach (SocketVoiceChannel channel in guild.VoiceChannels) {
+                    int channelIndex = 0;
+                    foreach (String channelNameToCopy in channelNamesToCopy) {
+                        if (channelNameToCopy.Equals(channel.Name)) {
+                            if (channel.Users.Count == 0) {
+                                emptyChannels[channelIndex].Add(channel);
+                            } else {
+                                occupiedChannels[channelIndex].Add(channel);
+                            }
+                        }
+
+                        channelIndex++;
+                    }
+                }
+
+                for (int channelIndex = 0; channelIndex < emptyChannels.Length; channelIndex++) {
+                    List<SocketVoiceChannel> emptyChannelList = emptyChannels[channelIndex];
+
+                    if (emptyChannelList.Count > 1) {
+                        // Remove channels until there's 1 empty left
+                        for (int emptyIndex = 0; emptyIndex < emptyChannelList.Count - 1; emptyIndex++) {
+                            SocketVoiceChannel channel = emptyChannelList[emptyIndex];
+                            tasks.Add(channel.DeleteAsync());
+                        }
+                    } else if (emptyChannelList.Count == 0) {
+                        List<SocketVoiceChannel> occupiedChannelList = occupiedChannels[channelIndex];
+                        // Add a channel with the same name
+                        if (occupiedChannelList.Count > 0) {
+                            SocketVoiceChannel firstOccupiedChannel = occupiedChannelList[0];
+                            tasks.Add(guild.CreateVoiceChannelAsync(firstOccupiedChannel.Name, channelProperties => {
+                                channelProperties.UserLimit = firstOccupiedChannel.UserLimit;
+                                channelProperties.CategoryId = firstOccupiedChannel.CategoryId;
+                                channelProperties.Position = firstOccupiedChannel.Position;
+                            }));
+                        }
+                    }
+                }
+            }
+
+            // Await the various tasks we started.
+            foreach (Task task in tasks)
+                await task;
+        }
+
         private void HandleCommand(SocketMessage userInput) {
             // This is for Cloud...
             if (userInput.Content.StartsWith("I love you Beef bot!", StringComparison.CurrentCultureIgnoreCase)) {
@@ -121,6 +201,15 @@ namespace Beef {
                     String beefLink = sc2Beef + " **Settle the Beef** " + sc2Beef + "\n";
                     beefLink += _config.BeefLadderLink;
                     MessageChannel(channel, beefLink).GetAwaiter().GetResult();
+                } else if (arguments[1] == "enableDynamicChannels") {
+                    MessageChannel(channel, "Enabling dynamic channels.").GetAwaiter().GetResult();
+                    EnableDynamicChannels();
+                    CheckDynamicChannels();
+                    code = ErrorCode.Success;
+                } else if (arguments[1] == "disableDynamicChannels") {
+                    MessageChannel(channel, "Disabling dynamic channels.").GetAwaiter().GetResult();
+                    DisableDynamicChannels();
+                    code = ErrorCode.Success;
                 } else if (arguments[1] == "register") {
                     if (!IsLeader(author)) {
                         MessageChannel(channel, "You don't have permission to do that.").GetAwaiter().GetResult();
@@ -504,6 +593,8 @@ namespace Beef {
                         help += "\t **%beef% switch <PlayerOrRank> <OtherPlayerOrRank>** - Switches the two players on the ladder leaving everyone else in place.\n";
                         help += "\t **%beef% refresh** - Requests a refresh to the MMRs for each player.  Note that this can take a minute.\n";
                         help += "\t **%beef% undo** - Undoes the last change to the ladder (renames, wins, etc..).\n";
+                        help += "\t **%beef% enableDynamicChannels** - Enables dynamic channels (default). If there are dynamic channels set, the bot will ensure there is always exactly 1 empty of each configured dynamic channel.\n";
+                        help += "\t **%beef% disableDynamicChannels** - Disables dynamic channels. If there are dynamic channels set, the bot will no longer ensure there is always exactly 1 empty of each configured dynamic channel.\n";
                         help += "\t **%beef% version** - Prints the version of BeefBot\n";
                         help = help.Replace("%beef%", _botPrefix + _beefCommand);
 
@@ -531,10 +622,14 @@ namespace Beef {
         /// Called when the bot is ready.
         /// </summary>
         /// <returns>An async task.</returns>
-        private Task ReadyAsync() {
+        private async Task ReadyAsync() {
             Console.WriteLine($"{_discordClient.CurrentUser} is connected!");
 
-            return Task.CompletedTask;
+            // Enable dynamic voice channels if requested.
+            if (_dynamicChannels != null) {
+                EnableDynamicChannels();
+                await CheckDynamicChannels();
+            }
         }
 
         /// <summary>
