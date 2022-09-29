@@ -49,8 +49,11 @@ namespace Beef {
             }
             _mainContext = SynchronizationContext.Current as DispatcherSynchronizationContext;
 
-            _mmrReader = new MmrReader.MmrReader(_config.MmrReaderConfig);
-            _mmrReader.StartThread(this, this);
+            // The MMR reader is optional. If the settings are null, just skip it
+            if (_config.MmrReaderConfig != null) {
+                _mmrReader = new MmrReader.MmrReader(_config.MmrReaderConfig);
+                _mmrReader.StartThread(this, this);
+            }
         }
 
         public async Task Run() {
@@ -92,7 +95,7 @@ namespace Beef {
             }
 
             // Make sure it starts with ".beef" as an optimization
-            if (String.IsNullOrEmpty(userInput.Content) || !userInput.Content.StartsWith(_botPrefix + "beef"))
+            if (String.IsNullOrEmpty(userInput.Content) || !userInput.Content.StartsWith(_botPrefix + _beefCommand))
                 return;
 
             String[] arguments = ParseArguments(userInput.Content);
@@ -201,7 +204,7 @@ namespace Beef {
                         code = _userManager.LinkUserToBattleNetAccount(beefName, battleNetAccountUrl);
 
                         // Do an immediate update so the player can see their mmr right away
-                        _mmrReader.RequestUpdate();
+                        _mmrReader?.RequestUpdate();
 
                         if (code.Ok())
                             MessageChannel(channel, "Linked **" + beefName + "** to account **" + battleNetAccountUrl + "**.").GetAwaiter().GetResult();
@@ -231,7 +234,7 @@ namespace Beef {
                         code = _userManager.UnlinkUserFromBattleNetAccount(beefName);
 
                         // Do an immediate update so the update is seen right away
-                        _mmrReader.RequestUpdate();
+                        _mmrReader?.RequestUpdate();
 
                         if (code.Ok())
                             MessageChannel(channel, "Unlinked **" + beefName + "** from account **" + battleNetAccountUrl + "**.").GetAwaiter().GetResult();
@@ -451,7 +454,7 @@ namespace Beef {
                             return;
                         }
 
-                        _mmrReader.RequestUpdate();
+                        _mmrReader?.RequestUpdate();
                         code = ErrorCode.Success;
                         MessageChannel(channel, "MMR refresh requested.").GetAwaiter().GetResult();
                     } else if (arguments[1].Equals("undo")) {
@@ -502,7 +505,7 @@ namespace Beef {
                         help += "\t **%beef% refresh** - Requests a refresh to the MMRs for each player.  Note that this can take a minute.\n";
                         help += "\t **%beef% undo** - Undoes the last change to the ladder (renames, wins, etc..).\n";
                         help += "\t **%beef% version** - Prints the version of BeefBot\n";
-                        help = help.Replace("%beef%", _botPrefix + "beef");
+                        help = help.Replace("%beef%", _botPrefix + _beefCommand);
 
                         // Send the help message to all if requested.  Otherwise
                         // just DM it to the user that asked.
