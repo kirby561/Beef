@@ -166,6 +166,12 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="BeefConfig.cs" />
     <Compile Include="MmrReader\ReaderConfig.cs" />
+    <Compile Include="SharedServices\AccessToken.cs" />
+    <Compile Include="SharedServices\PollingService.cs" />
+    <Compile Include="TwitchManager\TwitchConfig.cs" />
+    <Compile Include="TwitchManager\ResponseModels\TwitchHelixStreamsResponse.cs" />
+    <Compile Include="TwitchManager\TwitchLiveListener.cs" />
+    <Compile Include="TwitchManager\TwitchPollingService.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

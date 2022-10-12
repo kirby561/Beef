@@ -57,6 +57,12 @@ namespace Beef {
         // Presentation API
         RequestException,
 
+        // Twitch
+        TwitchFileCouldNotSerialize,
+        TwitchFileCouldNotWriteFile,
+        TwitchUserDoesNotExist,
+        InvalidTwitchUrl,
+
     }
 
     public static class ErrorCodeMethods {
@@ -116,6 +122,14 @@ namespace Beef {
                     return "I couldn't write the beef file for some reason!";
                 case ErrorCode.CouldNotDeleteFile:
                     return "I couldn't delete the file for some reason!";
+                case ErrorCode.TwitchFileCouldNotSerialize:
+                    return "I wasn't able to make the record serialize. I'm sure this is your fault somehow.";
+                case ErrorCode.TwitchFileCouldNotWriteFile:
+                    return "The file couldn't be written. Did you corrupt the file system or something? How could you?";
+                case ErrorCode.TwitchUserDoesNotExist:
+                    return "That twitch stream isn't being monitored, scrub.";
+                case ErrorCode.InvalidTwitchUrl:
+                    return "That twitch URL isn't even valid. Maybe you should monitor your copy/paste skills, huh?";
                 default:
                     return "Well I don't know what happened but it can't be good.";
             }

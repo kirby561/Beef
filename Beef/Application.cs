@@ -1,4 +1,5 @@
 ﻿using Beef.MmrReader;
+using Beef.TwitchManager;
 using Discord;
 using Discord.WebSocket;
 using System;
@@ -9,8 +10,8 @@ using System.Threading.Tasks;
 using System.Windows.Threading;
 
 namespace Beef {
-    class Application : ProfileInfoProvider, MmrListener {
-        private readonly String _version = "1.8.0";
+    class Application : ProfileInfoProvider, MmrListener, TwitchLiveListener {
+        private readonly String _version = "1.9.0";
         private BeefConfig _config;
         private String _botPrefix;
         private String _beefCommand;
@@ -21,6 +22,7 @@ namespace Beef {
         private bool _dynamicVoiceChannelsEnabled = false;
         private String _exePath;
         private MmrReader.MmrReader _mmrReader;
+        private TwitchPollingService _twitchPollingService;
         private DispatcherSynchronizationContext _mainContext;
 
         private DiscordSocketClient _discordClient;
@@ -54,8 +56,13 @@ namespace Beef {
 
             // The MMR reader is optional. If the settings are null, just skip it
             if (_config.MmrReaderConfig != null) {
-                _mmrReader = new MmrReader.MmrReader(_config.MmrReaderConfig);
-                _mmrReader.StartThread(this, this);
+                _mmrReader = new MmrReader.MmrReader(this, this, _config.MmrReaderConfig);
+                _mmrReader.StartThread();
+            }
+
+            if (_config.TwitchConfig != null) {
+                _twitchPollingService = new TwitchPollingService(_config.TwitchConfig, _exePath + "/TwitchPollingService", this);
+                _twitchPollingService.StartThread();
             }
         }
 
@@ -108,6 +115,11 @@ namespace Beef {
             await CheckDynamicChannels();
         }
 
+        /// <summary>
+        /// Maintains exactly 1 empty channel of each dynamic channel by
+        /// creating/deleting empty ones as needed.
+        /// </summary>
+        /// <returns>A task that can be waited on.</returns>
         private async Task CheckDynamicChannels() {
             if (_dynamicChannels == null)
                 return; // Dynamic channels are not configured.
@@ -210,6 +222,74 @@ namespace Beef {
                     MessageChannel(channel, "Disabling dynamic channels.").GetAwaiter().GetResult();
                     DisableDynamicChannels();
                     code = ErrorCode.Success;
+                } else if (arguments[1] == "monitor") {
+                    if (!IsLeader(author)) {
+                        MessageChannel(channel, "Who do you think you are? You don't have permission for that! Maybe get a job...make something of yourself. ¯\\_(ツ)_/¯").GetAwaiter().GetResult();
+                        return;
+                    }
+
+                    if (_twitchPollingService == null) {
+                        MessageChannel(channel, "The twitch configuration has not been setup. Whoever manages this bot is pretty lazy tbh.").GetAwaiter().GetResult();
+                        return;
+                    }
+
+                    if (arguments.Length != 3) {
+                        MessageChannel(channel, "That's not how you use this command, broski. Did you know that there's a **" + _botPrefix + _beefCommand + "** help command? It's like nobody even reads anything anymore.").GetAwaiter().GetResult();
+                        return;
+                    }
+
+                    code = _twitchPollingService.MonitorStream(arguments[2]);
+                    if (code.Ok()) {
+                        MessageChannel(channel, "Monitoring " + arguments[2]).GetAwaiter().GetResult();
+                    }
+                } else if (arguments[1] == "unmonitor") {
+                    if (!IsLeader(author)) {
+                        MessageChannel(channel, "Who do you think you are? You don't have permission for that! Maybe get a job...make something of yourself. ¯\\_(ツ)_/¯").GetAwaiter().GetResult();
+                        return;
+                    }
+
+                    if (_twitchPollingService == null) {
+                        MessageChannel(channel, "The twitch configuration has not been setup. Whoever manages this bot is pretty lazy tbh.").GetAwaiter().GetResult();
+                        return;
+                    }
+                    
+                    if (arguments.Length != 3) {
+                        MessageChannel(channel, "That's not how you use this command yo. Did you know that there's a **" + _botPrefix + _beefCommand + "** help command? It's like nobody even reads anything anymore.").GetAwaiter().GetResult();
+                        return;
+                    }
+
+                    code = _twitchPollingService.StopMonitoringStream(arguments[2]);
+                    if (code.Ok()) {
+                        MessageChannel(channel, "No longer monitoring " + arguments[2]).GetAwaiter().GetResult();
+                    }
+                } else if (arguments[1] == "listMonitoredStreams") {
+                    if (!IsLeader(author)) {
+                        MessageChannel(channel, "Who do you think you are? You don't have permission for that! Maybe get a job...make something of yourself. ¯\\_(ツ)_/¯").GetAwaiter().GetResult();
+                        return;
+                    }
+
+                    if (_twitchPollingService == null) {
+                        MessageChannel(channel, "The twitch configuration has not been setup. Whoever manages this bot is pretty lazy tbh.").GetAwaiter().GetResult();
+                        return;
+                    }
+                    
+                    if (arguments.Length != 2) {
+                        MessageChannel(channel, "That's not how you use this command yo. Did you know that there's a **" + _botPrefix + _beefCommand + "** help command? It's like nobody even reads anything anymore.").GetAwaiter().GetResult();
+                        return;
+                    }
+
+                    List<TwitchPollingService.StreamInfo> monitoredStreams = _twitchPollingService.GetMonitoredStreams();
+                    if (monitoredStreams.Count == 0) {
+                        MessageChannel(channel, "No streams are being monitored yet.").GetAwaiter().GetResult();
+                        return;
+                    } else {
+                        String message = "_ _\nThe following streams are being monitored:";
+                        foreach (TwitchPollingService.StreamInfo stream in monitoredStreams) {
+                            message += "\n" + stream.GetTwitchUsername() + ": " + stream.StreamUrl;
+                        }
+                        MessageChannel(channel, message).GetAwaiter().GetResult();
+                        return;
+                    }
                 } else if (arguments[1] == "register") {
                     if (!IsLeader(author)) {
                         MessageChannel(channel, "You don't have permission to do that.").GetAwaiter().GetResult();
@@ -595,6 +675,9 @@ namespace Beef {
                         help += "\t **%beef% undo** - Undoes the last change to the ladder (renames, wins, etc..).\n";
                         help += "\t **%beef% enableDynamicChannels** - Enables dynamic channels (default). If there are dynamic channels set, the bot will ensure there is always exactly 1 empty of each configured dynamic channel.\n";
                         help += "\t **%beef% disableDynamicChannels** - Disables dynamic channels. If there are dynamic channels set, the bot will no longer ensure there is always exactly 1 empty of each configured dynamic channel.\n";
+                        help += "\t **%beef% monitor <TwitchStreamLink>** - Starts monitoring the given twitch stream and notifies the configured channel when they go live. <TwitchStreamLink> must be of the form https://www.twitch.tv/twitchname \n";
+                        help += "\t **%beef% unmonitor <TwitchStreamLink>** - Stops monitoring the given twitch stream and no longer notifies the configured channel when they go live. <TwitchStreamLink> must be of the form https://www.twitch.tv/twitchname \n";
+                        help += "\t **%beef% listMonitoredStreams** - Lists the channels being monitored currently.\n";
                         help += "\t **%beef% version** - Prints the version of BeefBot\n";
                         help = help.Replace("%beef%", _botPrefix + _beefCommand);
 
@@ -833,6 +916,18 @@ namespace Beef {
                         Console.WriteLine(entry.Item1.ProfileId + ": " + entry.Item2.Mmr + " as " + entry.Item2.Race);
                     else {
                         Console.WriteLine(entry.Item1.ProfileId + ": " + "No ladder info");
+                    }
+                }
+            }, null);
+        }
+
+        public void OnTwitchStreamLive(string twitchName, string goLiveMessage) {
+            _mainContext.Post((_) => {
+                foreach (SocketGuild guild in _discordClient.Guilds) {
+                    foreach (SocketTextChannel channel in guild.TextChannels) {
+                        if (channel.Name.Equals(_twitchPollingService.GetConfiguration().GoLiveChannel)) {
+                            channel.SendMessageAsync(goLiveMessage).GetAwaiter().GetResult();
+                        }
                     }
                 }
             }, null);

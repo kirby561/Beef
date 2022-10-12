@@ -1,6 +1,6 @@
 {
 	"Version": 3,
-	"DiscordBotToken": "<YourDiscordBotTokenHere>"
+	"DiscordBotToken": "<YourDiscordBotTokenHere>",
 	"BotPrefix": ".",
 	"LeaderRoles": [ "ExampleRole1", "ExampleRole2" ],
 	"DynamicChannels": [ "2v2 Teams", "3v3 Teams", "4v4 Teams" ],
@@ -14,5 +14,12 @@
 		"DataDirectory": ".",
 		"ClientId": "<BattleNetDevClientId>",
 		"ClientSecret": "<BattleNetDevClientSecret>"
+	},
+	"TwitchConfig": {
+		"Version": 1,
+		"MsPerPoll": 60000,
+		"GoLiveChannel": "<ChannelName>",
+		"ClientId": "<TwitchAppClientId>",
+		"ClientSecret": "<TwitchAppClientSecret>"
 	}
 }
