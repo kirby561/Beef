@@ -46,6 +46,7 @@ namespace Beef {
                         BeefUserConfig configFile = null;
                         try {
                             configFile = deserializer.Deserialize<BeefUserConfig>(fileContents);
+                            configFile.Version = BeefUserConfig.BeefUserVersion; // Since reading updates to the latest version, change it. In the future we may need to do something to upgrade.
 
                             // Do some sanity checking
                             if (configFile == null) {
