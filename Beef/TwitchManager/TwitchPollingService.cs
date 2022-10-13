@@ -17,7 +17,9 @@ namespace Beef.TwitchManager {
     public class TwitchPollingService : PollingService {
         private const String TwitchNameVariable = "{TwitchName}";
         private const String StreamLinkVariable = "{StreamLink}";
-        private const String DefaultGoLiveMessage = "Hey everyone, " + TwitchNameVariable + " is live on Twitch!\n\n" + StreamLinkVariable;
+        private const String GameVariable = "{Game}";
+        private const String StreamTitleVariable = "{StreamTitle}";
+        private const String DefaultGoLiveMessage = "Hey everyone, " + TwitchNameVariable + " is live on Twitch!\n\n**{StreamTitle}**\n{Game}\n" + StreamLinkVariable;
         private const String TwitchStreamPrefix = "https://www.twitch.tv/";
 
         private Dictionary<String, StreamInfo> _monitoredStreams; // Maps Twitch Stream Name to StreamInfo
@@ -123,7 +125,9 @@ namespace Beef.TwitchManager {
                                     // Fill in the variables for the go live message
                                     String goLiveMessage = stream.GoLiveMessage
                                         .Replace(TwitchNameVariable, name)
-                                        .Replace(StreamLinkVariable, stream.StreamUrl);
+                                        .Replace(StreamLinkVariable, stream.StreamUrl)
+                                        .Replace(GameVariable, entry.game_name)
+                                        .Replace(StreamTitleVariable, entry.title);
                                     _twitchLiveListener.OnTwitchStreamLive(stream.GetTwitchUsername(), goLiveMessage);
                                 }
                             }
