@@ -98,7 +98,6 @@ namespace Beef.TwitchManager {
                 }
 
                 try {
-
                     JavaScriptSerializer serializer = new JavaScriptSerializer();                
                     TwitchHelixStreamsResponse response = serializer.Deserialize<TwitchHelixStreamsResponse>(resultString.Result);                            
                     foreach (TwitchHelixStreamsDataEntry entry in response.data) {
@@ -133,8 +132,6 @@ namespace Beef.TwitchManager {
                             }
                         }
                     }
-
-                    
                 } catch (Exception ex) {
                     Console.WriteLine("Exception deserializing authorization token content: " + ex.Message);
                 }
