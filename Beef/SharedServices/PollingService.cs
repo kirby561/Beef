@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -6,7 +7,6 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web.Script.Serialization;
 
 namespace Beef.SharedServices {
     /// <summary>
@@ -166,7 +166,6 @@ namespace Beef.SharedServices {
         /// </remarks>
         protected String GetOAuthAccessToken(String url, String clientId, String clientSecret, String accessCacheFilePath) {
             AccessTokenInfo accessTokenInfo = null;
-            JavaScriptSerializer serializer = new JavaScriptSerializer();
             HttpClient httpClient = new HttpClient();
 
             // Update from our cache file
@@ -174,7 +173,7 @@ namespace Beef.SharedServices {
                 String accessFileContents = File.ReadAllText(accessCacheFilePath);
 
                 try {
-                    accessTokenInfo = serializer.Deserialize<AccessTokenInfo>(accessFileContents);
+                    accessTokenInfo = JsonConvert.DeserializeObject<AccessTokenInfo>(accessFileContents);
                 } catch (Exception serializerEx) {
                     Console.WriteLine("Access token cache file corrupted.  Removing and refreshing the token.  Exception: " + serializerEx.Message);
                     try {
@@ -224,7 +223,7 @@ namespace Beef.SharedServices {
                 }
 
                 try {
-                    dynamic response = serializer.Deserialize<dynamic>(resultString.Result);
+                    dynamic response = JsonConvert.DeserializeObject<dynamic>(resultString.Result);
                     accessTokenInfo = new AccessTokenInfo();
                     accessTokenInfo.AccessToken = response["access_token"];
 
@@ -233,7 +232,7 @@ namespace Beef.SharedServices {
 
                     // Serialize to file
                     try {
-                        String serializedTokenInfo = serializer.Serialize(accessTokenInfo);
+                        String serializedTokenInfo = JsonConvert.SerializeObject(accessTokenInfo);
                         File.WriteAllText(accessCacheFilePath, serializedTokenInfo);
                     } catch (Exception ex) {
                         Console.WriteLine("Failed to cache the access token.  Exception: " + ex.Message);

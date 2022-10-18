@@ -29,7 +29,11 @@ namespace Beef {
 
         public Application(BeefConfig config, String exePath) {
             _exePath = Directory.GetParent(exePath).FullName;
-            _discordClient = new DiscordSocketClient();
+
+            var discordClientConfig = new DiscordSocketConfig {
+                GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.MessageContent
+            };
+            _discordClient = new DiscordSocketClient(discordClientConfig);
 
             _discordClient.Log += LogAsync;
             _discordClient.Ready += ReadyAsync;
@@ -52,7 +56,7 @@ namespace Beef {
             if (SynchronizationContext.Current == null || !(SynchronizationContext.Current is DispatcherSynchronizationContext)) {
                 SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
             }
-            _mainContext = SynchronizationContext.Current as DispatcherSynchronizationContext;
+            _mainContext = (DispatcherSynchronizationContext)SynchronizationContext.Current;
 
             // The MMR reader is optional. If the settings are null, just skip it
             if (_config.MmrReaderConfig != null) {

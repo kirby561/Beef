@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27703.2018
+# Visual Studio Version 17
+VisualStudioVersion = 17.3.32929.385
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Beef", "Beef\Beef.csproj", "{66F084D6-171F-4C07-8BD7-C528F890DC46}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Beef", "Beef\Beef.csproj", "{9F4A08E0-1A07-41FA-AC66-F676EFAA6FCA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,15 +11,15 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{66F084D6-171F-4C07-8BD7-C528F890DC46}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{66F084D6-171F-4C07-8BD7-C528F890DC46}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{66F084D6-171F-4C07-8BD7-C528F890DC46}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{66F084D6-171F-4C07-8BD7-C528F890DC46}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9F4A08E0-1A07-41FA-AC66-F676EFAA6FCA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9F4A08E0-1A07-41FA-AC66-F676EFAA6FCA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9F4A08E0-1A07-41FA-AC66-F676EFAA6FCA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9F4A08E0-1A07-41FA-AC66-F676EFAA6FCA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {CF6C99E1-4E5F-491D-8604-2B1A29D8439B}
+		SolutionGuid = {7E7E8282-0B42-408E-8BC8-DED8C4467C61}
 	EndGlobalSection
 EndGlobal

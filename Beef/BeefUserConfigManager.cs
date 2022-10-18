@@ -1,9 +1,9 @@
 ﻿using Beef.MmrReader;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
-using System.Web.Script.Serialization;
 
 namespace Beef {
     class BeefUserConfigManager {
@@ -42,10 +42,9 @@ namespace Beef {
                 try {
                     String fileContents = File.ReadAllText(filePath);
                     if (!String.IsNullOrEmpty(fileContents)) {
-                        JavaScriptSerializer deserializer = new JavaScriptSerializer();
                         BeefUserConfig configFile = null;
                         try {
-                            configFile = deserializer.Deserialize<BeefUserConfig>(fileContents);
+                            configFile = JsonConvert.DeserializeObject<BeefUserConfig>(fileContents);
                             configFile.Version = BeefUserConfig.BeefUserVersion; // Since reading updates to the latest version, change it. In the future we may need to do something to upgrade.
 
                             // Do some sanity checking
@@ -388,10 +387,9 @@ namespace Beef {
         /// <param name="filePath">The file path to write to.</param>
         /// <returns>Returns ErrorCode.Success or an error if there was a problem.</returns>
         private ErrorCode WriteBeefUserToFile(BeefUserConfig userConfig, String filePath) {
-            JavaScriptSerializer serializer = new JavaScriptSerializer();
             String configString = null;
             try {
-                configString = serializer.Serialize(userConfig);
+                configString = JsonConvert.SerializeObject(userConfig);
             } catch (Exception ex) {
                 Console.WriteLine("Could not serialize the given config.");
                 Console.WriteLine("Exception: " + ex.Message);

@@ -1,6 +1,6 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.IO;
-using System.Web.Script.Serialization;
 
 namespace Beef {
     /// <summary>
@@ -23,11 +23,10 @@ namespace Beef {
                 return null;
             }
 
-            JavaScriptSerializer deserializer = new JavaScriptSerializer();
             BeefConfig configFile = null;
 
             try {
-                configFile = deserializer.Deserialize<BeefConfig>(configFileText);
+                configFile = JsonConvert.DeserializeObject<BeefConfig>(configFileText);
             } catch (Exception ex) {
                 Console.WriteLine("Could not deserialize the config file.  Is the format correct?  See config.json.example for correct usage.");
                 Console.WriteLine("Exception: " + ex.Message);
@@ -46,10 +45,9 @@ namespace Beef {
         /// <param name="path">The path to save the config file to</param>
         /// <returns>Returns true if it succeeded, false if there was an error.</returns>
         public static bool SaveConfigFile(BeefConfig config, String path) {
-            JavaScriptSerializer serializer = new JavaScriptSerializer();
             String configString = null;
             try {
-                configString = serializer.Serialize(config);
+                configString = JsonConvert.SerializeObject(config);
             } catch (Exception ex) {
                 Console.WriteLine("Could not serialize the given config.");
                 Console.WriteLine("Exception: " + ex.Message);

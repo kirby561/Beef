@@ -1,4 +1,5 @@
 ﻿using Beef.SharedServices;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -7,7 +8,6 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
-using System.Web.Script.Serialization;
 
 namespace Beef.TwitchManager {
     /// <summary>
@@ -97,9 +97,8 @@ namespace Beef.TwitchManager {
                     Console.WriteLine("Exception reading Twitch user's live status content: " + ex.Message);
                 }
 
-                try {
-                    JavaScriptSerializer serializer = new JavaScriptSerializer();                
-                    TwitchHelixStreamsResponse response = serializer.Deserialize<TwitchHelixStreamsResponse>(resultString.Result);                            
+                try {               
+                    TwitchHelixStreamsResponse response = JsonConvert.DeserializeObject<TwitchHelixStreamsResponse>(resultString.Result);                            
                     foreach (TwitchHelixStreamsDataEntry entry in response.data) {
                         if (stream.GetTwitchUsername().ToLower().Equals(entry.user_login)) {
                             // The user is live, check if they were live before
@@ -154,10 +153,9 @@ namespace Beef.TwitchManager {
                 try {
                     String fileContents = File.ReadAllText(filePath);
                     if (!String.IsNullOrEmpty(fileContents)) {
-                        JavaScriptSerializer deserializer = new JavaScriptSerializer();
                         StreamInfo configFile = null;
                         try {
-                            configFile = deserializer.Deserialize<StreamInfo>(fileContents);
+                            configFile = JsonConvert.DeserializeObject<StreamInfo>(fileContents);
 
                             // Do some sanity checking
                             if (configFile == null) {
@@ -264,10 +262,9 @@ namespace Beef.TwitchManager {
             if (File.Exists(streamFilePath))
                 File.Delete(streamFilePath);
 
-            JavaScriptSerializer serializer = new JavaScriptSerializer();
             String configString = null;
             try {
-                configString = serializer.Serialize(info);
+                configString = JsonConvert.SerializeObject(info);
             } catch (Exception ex) {
                 Console.WriteLine("Could not serialize the given config.");
                 Console.WriteLine("Exception: " + ex.Message);

@@ -12,6 +12,8 @@ using System.IO;
 using System.Threading;
 using Beef.MmrReader;
 
+using Range = Google.Apis.Slides.v1.Data.Range;
+
 namespace Beef {
     /// <summary>
     /// Handles authentication and communication with the Google Slides API

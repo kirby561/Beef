@@ -1,11 +1,11 @@
 using Beef.SharedServices;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web.Script.Serialization;
 
 namespace Beef.MmrReader {
     /// <summary>
@@ -17,7 +17,6 @@ namespace Beef.MmrReader {
 
         // Reader state
         private HttpClient _httpClient = new HttpClient();
-        private JavaScriptSerializer _jsonSerializer = new JavaScriptSerializer();
         private String _accessCacheFile;
 
         // Interface
@@ -92,12 +91,12 @@ namespace Beef.MmrReader {
 
                 // We expect the response to have a "allLadderMemberships" property with each ladder inside
                 try {
-                    dynamic ladderData = _jsonSerializer.Deserialize<dynamic>(jsonResponse);
+                    dynamic ladderData = JsonConvert.DeserializeObject<dynamic>(jsonResponse);
                     dynamic allLadderMemberships = ladderData["allLadderMemberships"];
 
                     int maxMmrSoFar = -1;
                     LadderInfo bestLadder = null;
-                    for (int i = 0; i < allLadderMemberships.Length; i++) {
+                    for (int i = 0; i < allLadderMemberships.Count; i++) {
                         dynamic ladderEntry = allLadderMemberships[i];
                         String ladderIdStr = ladderEntry["ladderId"];
                         String gameMode = ladderEntry["localizedGameMode"];
@@ -182,7 +181,7 @@ namespace Beef.MmrReader {
 
                 // We expect the response to have a "rankedAndPools.mmr" property with our MMR.
                 try {
-                    dynamic ladderData = _jsonSerializer.Deserialize<dynamic>(jsonResponse);
+                    dynamic ladderData = JsonConvert.DeserializeObject<dynamic>(jsonResponse);
                     long mmr = (long)Math.Round((double)ladderData["ranksAndPools"][0]["mmr"]);
 
                     // Convert to string
@@ -194,7 +193,7 @@ namespace Beef.MmrReader {
                     String profileIdStr = "" + profileId;
                     dynamic ladderTeams = ladderData["ladderTeams"];
                     String firstErrorMessage = null;
-                    for (int i = 0; i < ladderTeams.Length; i++) {
+                    for (int i = 0; i < ladderTeams.Count; i++) {
                         try {
                             dynamic team = ladderTeams[i];
                             dynamic teamMembers = team["teamMembers"];
