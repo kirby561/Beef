@@ -1,4 +1,5 @@
-﻿using Beef.MmrReader;
+﻿using Beef.BeefApi;
+using Beef.MmrReader;
 using Beef.TwitchManager;
 using Discord;
 using Discord.WebSocket;
@@ -24,6 +25,7 @@ namespace Beef {
         private MmrReader.MmrReader _mmrReader;
         private TwitchPollingService _twitchPollingService;
         private DispatcherSynchronizationContext _mainContext;
+        private ApiServer _apiServer;
 
         private DiscordSocketClient _discordClient;
 
@@ -51,6 +53,7 @@ namespace Beef {
                 _config.GoogleApiCredentialFile,
                 _config.GoogleApiApplicationName,
                 _exePath + "/Backups");
+            _presentationManager.Initialize();
             _userManager = new BeefUserConfigManager(_exePath + "/Users");
 
             if (SynchronizationContext.Current == null || !(SynchronizationContext.Current is DispatcherSynchronizationContext)) {
@@ -68,6 +71,10 @@ namespace Beef {
                 _twitchPollingService = new TwitchPollingService(_config.TwitchConfig, _exePath + "/TwitchPollingService", this);
                 _twitchPollingService.StartThread();
             }
+            
+            // Start the API
+            _apiServer = new ApiServer(_exePath + "/BeefApiConfig.json", SynchronizationContext.Current, _presentationManager, _userManager);
+            _apiServer.Start();
         }
 
         public async Task Run() {
@@ -143,7 +150,7 @@ namespace Beef {
                     int channelIndex = 0;
                     foreach (String channelNameToCopy in channelNamesToCopy) {
                         if (channelNameToCopy.Equals(channel.Name)) {
-                            if (channel.Users.Count == 0) {
+                            if (channel.ConnectedUsers.Count == 0) {
                                 emptyChannels[channelIndex].Add(channel);
                             } else {
                                 occupiedChannels[channelIndex].Add(channel);

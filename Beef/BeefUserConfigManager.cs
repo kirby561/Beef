@@ -6,7 +6,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 
 namespace Beef {
-    class BeefUserConfigManager {
+    public class BeefUserConfigManager {
         // User registration information
         private String _beefUsersPath; // This is where to store the BeefUserConfigs
 

@@ -1,8 +1,7 @@
 ﻿using System;
 
 namespace Beef {
-    class BeefEntry : IComparable<BeefEntry> {
-        public String ObjectId { get; set; }
+    public class BeefEntry : IComparable<BeefEntry> {
         public String PlayerName { get; set; }
         public int PlayerRank { get; set; }
 
@@ -19,7 +18,6 @@ namespace Beef {
         }
 
         public BeefEntry(BeefEntry other) {
-            ObjectId = other.ObjectId;
             PlayerName = other.PlayerName;
             PlayerRank = other.PlayerRank;
         }

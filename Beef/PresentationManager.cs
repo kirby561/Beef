@@ -18,9 +18,8 @@ namespace Beef {
     /// <summary>
     /// Handles authentication and communication with the Google Slides API
     /// to make changes to the bracket.
-    /// //?? TODO: Every return false in here should return a code that identifies what happened or log to a stream that's passed in so it can report what the problem is.
     /// </summary>
-    class PresentationManager {
+    public class PresentationManager {
         private String[] _scopes = { SlidesService.Scope.Presentations };
         private String _applicationName;
         private String _credentialFile;
@@ -33,6 +32,7 @@ namespace Beef {
         private IList<Request> _requestList = new List<Request>();
         private BackupManager _backupManager;
         private Dictionary<String, Tuple<ProfileInfo, LadderInfo>> _mmrDictionary;
+        private Dictionary<int, String> _rankToObjectId; // A map of rank to the ID of the object in the slide representing that rank
 
         /// <summary>
         /// Creates a PresentationManager with the given information.
@@ -88,6 +88,51 @@ namespace Beef {
                 return ErrorCode.Success;
 
             return ErrorCode.AuthenticationFailed;
+        }
+
+        public ErrorCode Initialize() {
+            ErrorCode result = Authenticate();
+            if (!result.Ok()) return result;
+
+            // Get the object IDs of the pyramid in the powerpoint slide.
+            _rankToObjectId = new Dictionary<int, string>();
+            IList<Page> slides = _presentation.Slides;
+            for (var i = 0; i < slides.Count; i++) {
+                Page slide = slides[i];
+                IList<PageElement> elements = slide.PageElements;
+                foreach (PageElement element in elements) {
+                    // Check if this is a player entry. 
+                    // A group of any 2 things with the second entry an integer is assumed to be a player entry.
+                    if (element?.ElementGroup?.Children?.Count == 2) {
+                        // Check that the second one is a number
+                        IList<PageElement> children = element.ElementGroup.Children;
+                        if (children[1]?.Shape?.Text?.TextElements?.Count > 0) {
+                            IList<TextElement> textElements = children[1].Shape.Text.TextElements;
+                            String numberInBeefStrElements = GetStringFromElements(textElements);
+                            String[] beefNumberParts = numberInBeefStrElements.Split('\n');
+                            if (beefNumberParts == null || beefNumberParts.Length == 0)
+                                continue;
+
+                            String numberInBeefStr = beefNumberParts[0].Trim();
+
+                            int rank = -1;
+                            if (Int32.TryParse(numberInBeefStr, out rank)) {
+                                // We have the number, now get the player name, if any
+                                if (children[0]?.Shape != null) {
+                                    IList<TextElement> playerElements = children[0].Shape?.Text?.TextElements;
+                                    String playerEntry = GetStringFromElements(playerElements);
+                                    String[] lines = playerEntry.Split('\n');
+                                    if (lines?.Length > 0) {
+                                        _rankToObjectId.Add(rank, children[0].ObjectId);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return ErrorCode.Success;
         }
 
         /// <summary>
@@ -450,11 +495,11 @@ namespace Beef {
                 return ErrorCode.CouldNotReadTheLadder;
 
             // Get the latest backup
-            String[] backups = _backupManager.GetLatestBackups(1);
-            if (backups == null || backups.Length < 1)
+            String[] backups = _backupManager.GetLatestBackups(2);
+            if (backups == null || backups.Length < 2)
                 return ErrorCode.NothingToUndo;
 
-            List<BeefEntry> backedUpEntries = _backupManager.LoadBackup(backups[0]);
+            List<BeefEntry> backedUpEntries = _backupManager.LoadBackup(backups[1]);
             if (backedUpEntries.Count != currentBracket.Count)
                 return ErrorCode.LadderDifferentSize;
 
@@ -493,50 +538,13 @@ namespace Beef {
             _backupEntries.Clear();
             _entries.Clear();
 
-            IList<Page> slides = _presentation.Slides;
-            for (var i = 0; i < slides.Count; i++) {
-                Page slide = slides[i];
-                IList<PageElement> elements = slide.PageElements;
-                foreach (PageElement element in elements) {
-                    // Check if this is a player entry. 
-                    // A group of any 2 things with the second entry an integer is assumed to be a player entry.
-                    if (element?.ElementGroup?.Children?.Count == 2) {
-                        // Check that the second one is a number
-                        IList<PageElement> children = element.ElementGroup.Children;
-                        if (children[1]?.Shape?.Text?.TextElements?.Count > 0) {
-                            IList<TextElement> textElements = children[1].Shape.Text.TextElements;
-                            String numberInBeefStrElements = GetStringFromElements(textElements);
-                            String[] beefNumberParts = numberInBeefStrElements.Split('\n');
-                            if (beefNumberParts == null || beefNumberParts.Length == 0)
-                                continue;
+            // Get the latest version
+            String[] backups = _backupManager.GetLatestBackups(1);
+            if (backups == null || backups.Length < 1)
+                return _entries;
 
-                            String numberInBeefStr = beefNumberParts[0].Trim();
-
-                            int rank = -1;
-                            if (Int32.TryParse(numberInBeefStr, out rank)) {
-                                // We have the number, now get the player name, if any
-                                if (children[0]?.Shape != null) {
-                                    IList<TextElement> playerElements = children[0].Shape?.Text?.TextElements;
-                                    String playerEntry = GetStringFromElements(playerElements);
-                                    String[] lines = playerEntry.Split('\n');
-                                    if (lines?.Length > 0) {
-                                        String playerName = lines[0];
-                                        var entry = new BeefEntry();
-                                        entry.ObjectId = children[0].ObjectId;
-                                        entry.PlayerName = playerName;
-                                        entry.PlayerRank = rank;
-                                        _entries.Add(entry);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Sort just in case the order of the elements isn't the same
-            // as the labeled rank in each.
-            _entries.Sort();
+            // The current ladder is the latest backup
+            _entries = _backupManager.LoadBackup(backups[0]);
 
             // Copy the list so when we modify it we have a backup copy to compare to
             foreach (BeefEntry entry in _entries) {
@@ -555,9 +563,9 @@ namespace Beef {
            ErrorCode result = ErrorCode.Success;
            var requestListUpdate = new BatchUpdatePresentationRequest();
             requestListUpdate.Requests = _requestList;
-
+            
             if (backup)
-                _backupManager.Backup(_backupEntries);
+                _backupManager.Backup(_entries);
 
             try {
                 PresentationsResource.BatchUpdateRequest batchRequest = _service.Presentations.BatchUpdate(requestListUpdate, _presentationId);
@@ -650,7 +658,7 @@ namespace Beef {
             DeleteTextRequest deleteRequest = new DeleteTextRequest();
             deleteRequest.TextRange = new Range();
             deleteRequest.TextRange.Type = "ALL";
-            deleteRequest.ObjectId = entry.ObjectId;
+            deleteRequest.ObjectId = _rankToObjectId[entry.PlayerRank];
             
             var actualRequest = new Request();
             actualRequest.DeleteText = deleteRequest;
@@ -670,7 +678,7 @@ namespace Beef {
             InsertTextRequest insertRequest = new InsertTextRequest();
             insertRequest.InsertionIndex = 0;
             insertRequest.Text = bracketString;
-            insertRequest.ObjectId = entry.ObjectId;
+            insertRequest.ObjectId = _rankToObjectId[entry.PlayerRank];
 
             var actualRequest = new Request();
             actualRequest.InsertText = insertRequest;
@@ -688,7 +696,7 @@ namespace Beef {
 
         private void AddBoldRequest(BeefEntry entry, bool bold, int startIndex, int endIndex) {
             UpdateTextStyleRequest boldRequest = new UpdateTextStyleRequest();
-            boldRequest.ObjectId = entry.ObjectId;
+            boldRequest.ObjectId = _rankToObjectId[entry.PlayerRank];
             boldRequest.Fields = "bold";
             Range textRange = new Range();
             textRange.Type = "FIXED_RANGE";

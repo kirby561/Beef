@@ -53,7 +53,6 @@ namespace Beef {
                 }
 
                 entries.Add(new BeefEntry {
-                    ObjectId = null,
                     PlayerRank = rankInt,
                     PlayerName = player
                 });

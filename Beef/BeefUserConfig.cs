@@ -5,7 +5,7 @@ namespace Beef {
     /// Keeps track of information for each user on the Beef ladder.
     /// It is persisted to disk in the BeefUsers folder.
     /// </summary>
-    class BeefUserConfig {
+    public class BeefUserConfig {
         // This is the current version and should always be incremented when changing the config file format.
         public static int BeefUserVersion = 1;
 
