@@ -12,7 +12,7 @@ using System.Windows.Threading;
 
 namespace Beef {
     class Application : ProfileInfoProvider, MmrListener, TwitchLiveListener {
-        private readonly String _version = "1.9.0";
+        private readonly String _version = "2.0.0";
         private BeefConfig _config;
         private String _botPrefix;
         private String _beefCommand;
