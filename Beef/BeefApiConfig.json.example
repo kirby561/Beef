@@ -8,5 +8,6 @@
         "Url": "https://localhost:5001"
       }
     }
-  }
+  },
+  "LadderChangedEventPort": 5002
 }

@@ -34,6 +34,9 @@ namespace Beef {
         private Dictionary<String, Tuple<ProfileInfo, LadderInfo>> _mmrDictionary;
         private Dictionary<int, String> _rankToObjectId; // A map of rank to the ID of the object in the slide representing that rank
 
+        public delegate void OnLadderChanged(List<BeefEntry> entries);
+        public event OnLadderChanged LadderChanged;
+
         /// <summary>
         /// Creates a PresentationManager with the given information.
         /// </summary>
@@ -576,6 +579,10 @@ namespace Beef {
             }
             
             _requestList.Clear();
+
+            // Notify listeners
+            LadderChanged.Invoke(_entries);
+
             return result;
         }
 
