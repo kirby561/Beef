@@ -1,141 +1,26 @@
-﻿using Google.Apis.Auth.OAuth2;
-using Google.Apis.Slides.v1;
-using Google.Apis.Slides.v1.Data;
-using Google.Apis.Services;
-using Google.Apis.Util.Store;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿
 using System.IO;
-using System.Threading;
 using Beef.MmrReader;
-
-using Range = Google.Apis.Slides.v1.Data.Range;
 
 namespace Beef {
     /// <summary>
-    /// Handles authentication and communication with the Google Slides API
-    /// to make changes to the bracket.
+    /// Manages the latest version of the current ladder and faciliates changes to it.
     /// </summary>
-    public class PresentationManager {
-        private String[] _scopes = { SlidesService.Scope.Presentations };
-        private String _applicationName;
-        private String _credentialFile;
-        private String _presentationId;
-
-        private SlidesService _service;
-        private List<BeefEntry> _backupEntries = new List<BeefEntry>(); // Keep the original so we know what changes need to be submitted.
+    public class LadderManager {
         private List<BeefEntry> _entries = new List<BeefEntry>();
-        private Presentation _presentation;
-        private IList<Request> _requestList = new List<Request>();
+
         private BackupManager _backupManager;
         private Dictionary<String, Tuple<ProfileInfo, LadderInfo>> _mmrDictionary;
-        private Dictionary<int, String> _rankToObjectId; // A map of rank to the ID of the object in the slide representing that rank
 
         public delegate void OnLadderChanged(List<BeefEntry> entries);
         public event OnLadderChanged LadderChanged;
 
         /// <summary>
-        /// Creates a PresentationManager with the given information.
+        /// Creates a LadderManager with the given information.
         /// </summary>
-        /// <param name="presentationId">A Google presentation ID containing a Google slide in the correct beef ladder format.</param>
-        /// <param name="credentialFile">A credential file for the Google API</param>
-        /// <param name="applicationName">The name of the Application registered with the Google API</param>
         /// <param name="backupLocation">The location to store backups of the ladder.</param>
-        public PresentationManager(String presentationId, String credentialFile, String applicationName, String backupLocation) {
-            _presentationId = presentationId;
-            _credentialFile = credentialFile;
-            _applicationName = applicationName;
+        public LadderManager(String backupLocation) {
             _backupManager = new BackupManager(backupLocation);            
-        }
-
-        /// <summary>
-        /// Authenticates and opens the presentation.
-        /// </summary>
-        /// <returns>Returns false if authentication failed or the presentation couldn't be opened.</returns>
-        public ErrorCode Authenticate() {
-            UserCredential credential;
-
-            using (var stream = new FileStream(_credentialFile, FileMode.Open, FileAccess.Read)) {
-                // The file token.json stores the user's access and refresh tokens, and is created
-                // automatically when the authorization flow completes for the first time.
-                string credPath = "token.json";
-                credential = GoogleWebAuthorizationBroker.AuthorizeAsync(
-                    GoogleClientSecrets.Load(stream).Secrets,
-                    _scopes,
-                    "user",
-                    CancellationToken.None,
-                    new FileDataStore(credPath, true)).Result;
-            }
-
-            // Create Google Slides API service.
-            _service = new SlidesService(new BaseClientService.Initializer() {
-                HttpClientInitializer = credential,
-                ApplicationName = _applicationName,
-            });
-
-            // Define request parameters.
-            PresentationsResource.GetRequest request = _service.Presentations.Get(_presentationId);
-
-            // Prints all the beef participants
-            try {
-                _presentation = request.Execute();
-            } catch (Exception ex) {
-                Console.WriteLine("Error when authenticating with the presentation API.");
-                Console.WriteLine(ex.Message);
-            }
-
-            if (_presentation != null)
-                return ErrorCode.Success;
-
-            return ErrorCode.AuthenticationFailed;
-        }
-
-        public ErrorCode Initialize() {
-            ErrorCode result = Authenticate();
-            if (!result.Ok()) return result;
-
-            // Get the object IDs of the pyramid in the powerpoint slide.
-            _rankToObjectId = new Dictionary<int, string>();
-            IList<Page> slides = _presentation.Slides;
-            for (var i = 0; i < slides.Count; i++) {
-                Page slide = slides[i];
-                IList<PageElement> elements = slide.PageElements;
-                foreach (PageElement element in elements) {
-                    // Check if this is a player entry. 
-                    // A group of any 2 things with the second entry an integer is assumed to be a player entry.
-                    if (element?.ElementGroup?.Children?.Count == 2) {
-                        // Check that the second one is a number
-                        IList<PageElement> children = element.ElementGroup.Children;
-                        if (children[1]?.Shape?.Text?.TextElements?.Count > 0) {
-                            IList<TextElement> textElements = children[1].Shape.Text.TextElements;
-                            String numberInBeefStrElements = GetStringFromElements(textElements);
-                            String[] beefNumberParts = numberInBeefStrElements.Split('\n');
-                            if (beefNumberParts == null || beefNumberParts.Length == 0)
-                                continue;
-
-                            String numberInBeefStr = beefNumberParts[0].Trim();
-
-                            int rank = -1;
-                            if (Int32.TryParse(numberInBeefStr, out rank)) {
-                                // We have the number, now get the player name, if any
-                                if (children[0]?.Shape != null) {
-                                    IList<TextElement> playerElements = children[0].Shape?.Text?.TextElements;
-                                    String playerEntry = GetStringFromElements(playerElements);
-                                    String[] lines = playerEntry.Split('\n');
-                                    if (lines?.Length > 0) {
-                                        _rankToObjectId.Add(rank, children[0].ObjectId);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            return ErrorCode.Success;
         }
 
         /// <summary>
@@ -277,7 +162,7 @@ namespace Beef {
             }
 
             // Update the bracket
-            return UpdatePresentationFromEntries(entries, true);
+            return UpdateLadderFromEntries(entries, true);
         }
 
         /// <summary>
@@ -325,6 +210,7 @@ namespace Beef {
         public ErrorCode RenamePlayer(int index, String newName, out BeefEntry existingPlayer) {
             existingPlayer = null;
             List<BeefEntry> entries = ReadBracket();
+            BeefEntry existingPlayerToBe = entries[index];
             if (entries.Count == 0)
                 return ErrorCode.CouldNotReadTheLadder; // There was an error reading the bracket.
 
@@ -343,7 +229,7 @@ namespace Beef {
             ErrorCode result = RenamePlayer(playerToRename, newName);
      
             if (result.Ok())
-                existingPlayer = _backupEntries[index];
+                existingPlayer = existingPlayerToBe;
 
             return result;
         }
@@ -356,7 +242,7 @@ namespace Beef {
         /// <returns>Returns Success or what went wrong if it failed.</returns>
         private ErrorCode RenamePlayer(BeefEntry existingEntry, String newName) {
             existingEntry.PlayerName = newName;
-            return UpdatePresentationFromEntries(_entries, true);
+            return UpdateLadderFromEntries(_entries, true);
         }
 
         /// <summary>
@@ -387,33 +273,13 @@ namespace Beef {
         }
 
         private ErrorCode SwitchPlayers(BeefEntry player1, BeefEntry player2) {
-            // Assumes the beef ladder has already been updated
-            /*
-            List<BeefEntry> newList = new List<BeefEntry>(_entries.Count);
-            for (int i = 0; i < _entries.Count; i++) {
-                if (i == (player1.PlayerRank - 1)) {
-                    newList.Add(player2);
-                } else if (i == (player2.PlayerRank - 1)) {
-                    newList.Add(player1);
-                } else {
-                    newList.Add(_entries[i]);
-                }
-            }
-
-            int player1PrevRank = player1.PlayerRank;
-            String player1PrevObjectId = player1.
-            player1.PlayerRank = player2.PlayerRank;
-            player2.PlayerRank = player1PrevRank;
-
-            return UpdatePresentationFromEntries(newList, true);
-            */
-
+            // Assumes ReadBracket has already been called.
             String player1Name = player1.PlayerName;
             String player2Name = player2.PlayerName;
             player1.PlayerName = player2Name;
             player2.PlayerName = player1Name;
 
-            return UpdatePresentationFromEntries(_entries, true);
+            return UpdateLadderFromEntries(_entries, true);
         }
 
         /// <summary>
@@ -483,7 +349,7 @@ namespace Beef {
                 }                
             }
 
-            return UpdatePresentationFromEntries(entries, true);
+            return UpdateLadderFromEntries(entries, true);
         }
 
         /// <summary>
@@ -506,17 +372,8 @@ namespace Beef {
             if (backedUpEntries.Count != currentBracket.Count)
                 return ErrorCode.LadderDifferentSize;
 
-            // Prepare the changes
-            for (int i = 0; i < backedUpEntries.Count; i++) {
-                AddDeleteRequest(currentBracket[i], i);
-
-                String newName = GetBracketStringFromEntry(backedUpEntries[i]);
-                currentBracket[i].PlayerName = newName;
-                AddInsertRequest(currentBracket[i], i);
-            }
-
             // Do the restore
-            ErrorCode code = SubmitRequests(false);
+            ErrorCode code = UpdateLadderFromEntries(backedUpEntries, false);
             if (!code.Ok())
                 return code;
 
@@ -534,11 +391,10 @@ namespace Beef {
         }
 
         /// <summary>
-        /// Reads the current bracket and sorts it by rank.
+        /// Reads the current bracket sorted by rank.
         /// </summary>
-        /// <returns></returns>
+        /// <returns>The bracket.</returns>
         public List<BeefEntry> ReadBracket() {
-            _backupEntries.Clear();
             _entries.Clear();
 
             // Get the latest version
@@ -548,42 +404,8 @@ namespace Beef {
 
             // The current ladder is the latest backup
             _entries = _backupManager.LoadBackup(backups[0]);
-
-            // Copy the list so when we modify it we have a backup copy to compare to
-            foreach (BeefEntry entry in _entries) {
-                _backupEntries.Add(new BeefEntry(entry));
-            }
             
             return _entries;
-        }
-
-        /// <summary>
-        /// Submits all the queued requests in one batch and indicates if it succeeded or not.
-        /// </summary>
-        /// <param name="backup">True to backup the entries before submitting the request.</param>
-        /// <returns>Returns ErrorCode.Success if it succeeded, or an error code otherwise.</returns>
-        public ErrorCode SubmitRequests(bool backup) {
-           ErrorCode result = ErrorCode.Success;
-           var requestListUpdate = new BatchUpdatePresentationRequest();
-            requestListUpdate.Requests = _requestList;
-            
-            if (backup)
-                _backupManager.Backup(_entries);
-
-            try {
-                PresentationsResource.BatchUpdateRequest batchRequest = _service.Presentations.BatchUpdate(requestListUpdate, _presentationId);
-                BatchUpdatePresentationResponse response = batchRequest.Execute();
-            } catch (Exception e) {
-                result = ErrorCode.RequestException;
-                Console.WriteLine(e.ToString());
-            }
-            
-            _requestList.Clear();
-
-            // Notify listeners
-            LadderChanged.Invoke(_entries);
-
-            return result;
         }
 
         /// <summary>
@@ -597,7 +419,7 @@ namespace Beef {
             // Make sure we have the latest names
             List<BeefEntry> currentBracket = ReadBracket();
 
-            return UpdatePresentationFromEntries(currentBracket, false);
+            return UpdateLadderFromEntries(currentBracket, false);
         }
 
         /// <summary>
@@ -632,114 +454,15 @@ namespace Beef {
             return bracketString;
         }
 
-        private ErrorCode UpdatePresentationFromEntries(List<BeefEntry> entries, bool backup) {
-            // Make the list of changes
-            for (int i = 0; i < entries.Count; i++) {
-                BeefEntry entry = entries[i];
-
-                AddDeleteRequest(entry, i);
-                AddInsertRequest(entry, i);
-            }
-
+        private ErrorCode UpdateLadderFromEntries(List<BeefEntry> entries, bool backup) {
             // Update
-            ErrorCode code = SubmitRequests(backup);
-            if (!code.Ok())
-                return code;
+            if (backup)
+                _backupManager.Backup(_entries);
+
+            // Notify listeners
+            LadderChanged.Invoke(_entries);
 
             return ErrorCode.Success;
-        }
-
-        /// <summary>
-        /// Adds the given entry to the list to be deleted in the next SubmitRequests call.
-        /// </summary>
-        /// <param name="entry">The entry to erase.</param>
-        private void AddDeleteRequest(BeefEntry entry, int beefIndex) {
-            if (String.IsNullOrEmpty(entry.PlayerName) && String.IsNullOrEmpty(_backupEntries[beefIndex].PlayerName)) {
-                return;
-            }
-
-            if (String.IsNullOrEmpty(_backupEntries[beefIndex].PlayerName)) {
-                return; // Nothing to do
-            }
-
-            DeleteTextRequest deleteRequest = new DeleteTextRequest();
-            deleteRequest.TextRange = new Range();
-            deleteRequest.TextRange.Type = "ALL";
-            deleteRequest.ObjectId = _rankToObjectId[entry.PlayerRank];
-            
-            var actualRequest = new Request();
-            actualRequest.DeleteText = deleteRequest;
-            _requestList.Add(actualRequest);
-        }
-
-        /// <summary>
-        /// Adds a request to add the given playerName to the given beef slot the next time SubmitRequests is called.
-        /// </summary>
-        /// <param name="entry">The beef slot to add the player name in.</param>
-        private void AddInsertRequest(BeefEntry entry, int beefIndex) {
-            String bracketString = GetBracketStringFromEntry(entry);
-
-            if (String.IsNullOrEmpty(bracketString))
-                return;
-
-            InsertTextRequest insertRequest = new InsertTextRequest();
-            insertRequest.InsertionIndex = 0;
-            insertRequest.Text = bracketString;
-            insertRequest.ObjectId = _rankToObjectId[entry.PlayerRank];
-
-            var actualRequest = new Request();
-            actualRequest.InsertText = insertRequest;
-            _requestList.Add(actualRequest);
-
-            // Bold the name if there's an MMR too
-            int newLineIndex = bracketString.IndexOf("\n");
-            if (newLineIndex >= 0) {
-                AddBoldRequest(entry, true, 0, newLineIndex);
-                AddBoldRequest(entry, false, newLineIndex, bracketString.Length);
-            } else if (bracketString.Length > 0) {
-                AddBoldRequest(entry, true, 0, bracketString.Length);
-            }
-        }
-
-        private void AddBoldRequest(BeefEntry entry, bool bold, int startIndex, int endIndex) {
-            UpdateTextStyleRequest boldRequest = new UpdateTextStyleRequest();
-            boldRequest.ObjectId = _rankToObjectId[entry.PlayerRank];
-            boldRequest.Fields = "bold";
-            Range textRange = new Range();
-            textRange.Type = "FIXED_RANGE";
-            textRange.StartIndex = startIndex;
-            textRange.EndIndex = endIndex;
-            boldRequest.TextRange = textRange;
-
-            TextStyle boldStyle = new TextStyle();
-            boldStyle.Bold = bold;
-
-            boldRequest.Style = boldStyle;
-
-            var actualRequest = new Request();
-            actualRequest.UpdateTextStyle = boldRequest;
-            _requestList.Add(actualRequest);
-        }
-        
-        /// <summary>
-        /// Squashes a list of text elements into a single string and removes the spacing.
-        /// </summary>
-        /// <param name="elements">The list of elements</param>
-        /// <returns>Returns the squashed string or an empty string if there are no elements.</returns>
-        private String GetStringFromElements(IList<TextElement> elements) {
-            // If there are no string elements there is no string
-            if (elements == null)
-                return "";
-
-            // Combine all the elments.  Player names can't be too complicated so it's most likely white space anyway.
-            String result = "";
-            foreach (TextElement element in elements) {
-                String content = element?.TextRun?.Content;
-                if (content != null)
-                    result += content;
-            }
-
-            return result;
         }
 
         /// <summary>

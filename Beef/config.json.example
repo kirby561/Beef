@@ -4,9 +4,6 @@
 	"BotPrefix": ".",
 	"LeaderRoles": [ "ExampleRole1", "ExampleRole2" ],
 	"DynamicChannels": [ "2v2 Teams", "3v3 Teams", "4v4 Teams" ],
-	"GoogleApiPresentationId": "AAAAAAAAAAAAA_BBBBBBBBBBBBBBBBBBBBBBBBBB",
-	"GoogleApiCredentialFile": "credentials.json",
-	"GoogleApiApplicationName": "<YourDiscordAppNameHere>",
 	"BeefLadderLink": "<BeefLadderLinkHere>",
 	"MmrReaderConfig": {
 		"Version": 1,

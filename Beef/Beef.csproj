@@ -11,9 +11,6 @@
 
   <ItemGroup>
     <PackageReference Include="Discord.Net" Version="3.8.1" />
-    <PackageReference Include="Google.Apis" Version="1.57.0" />
-    <PackageReference Include="Google.Apis.Auth" Version="1.57.0" />
-    <PackageReference Include="Google.Apis.Slides.v1" Version="1.57.0.2759" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
   </ItemGroup>
 

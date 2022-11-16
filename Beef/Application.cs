@@ -12,12 +12,12 @@ using System.Windows.Threading;
 
 namespace Beef {
     class Application : ProfileInfoProvider, MmrListener, TwitchLiveListener {
-        private readonly String _version = "2.0.0";
+        private readonly String _version = "2.1.0";
         private BeefConfig _config;
         private String _botPrefix;
         private String _beefCommand;
         private BeefUserConfigManager _userManager;
-        private PresentationManager _presentationManager;
+        private LadderManager _ladderManager;
         private String[] _leaderRoles;
         private String[] _dynamicChannels; // Names of channels that should be cloned to maintain 1 empty at all times
         private bool _dynamicVoiceChannelsEnabled = false;
@@ -48,12 +48,7 @@ namespace Beef {
             _leaderRoles = config.LeaderRoles;
             _dynamicChannels = config.DynamicChannels;
 
-            _presentationManager = new PresentationManager(
-                _config.GoogleApiPresentationId,
-                _config.GoogleApiCredentialFile,
-                _config.GoogleApiApplicationName,
-                _exePath + "/Backups");
-            _presentationManager.Initialize();
+            _ladderManager = new LadderManager(_exePath + "/Backups");
             _userManager = new BeefUserConfigManager(_exePath + "/Users");
 
             if (SynchronizationContext.Current == null || !(SynchronizationContext.Current is DispatcherSynchronizationContext)) {
@@ -73,7 +68,7 @@ namespace Beef {
             }
             
             // Start the API
-            _apiServer = new ApiServer(_exePath + "/BeefApiConfig.json", SynchronizationContext.Current, _presentationManager, _userManager);
+            _apiServer = new ApiServer(_exePath + "/BeefApiConfig.json", SynchronizationContext.Current, _ladderManager, _userManager);
             _apiServer.Start();
         }
 
@@ -211,11 +206,6 @@ namespace Beef {
                 SocketUser author = userInput.Author;
                 ISocketMessageChannel channel = userInput.Channel;
                 ErrorCode code = ErrorCode.CommandNotRecognized;
-
-                if (!_presentationManager.Authenticate().Ok()) {
-                    Console.WriteLine("Could not authenticate.");
-                    return;
-                }
 
                 if (arguments.Length == 1) {
                     // Just print the ladder link
@@ -502,11 +492,11 @@ namespace Beef {
                         if (!int.TryParse(losingPlayer, out losingRank)) losingRank = -1;
 
                         if (winningRank != -1 && losingRank != -1) {
-                            code = _presentationManager.ReportWin(winningRank, losingRank);
+                            code = _ladderManager.ReportWin(winningRank, losingRank);
                         } else if (winningRank == -1 && losingRank != -1) {
-                            code = _presentationManager.ReportWin(winningPlayer, losingRank);
+                            code = _ladderManager.ReportWin(winningPlayer, losingRank);
                         } else {
-                            code = _presentationManager.ReportWin(winningPlayer, losingPlayer);
+                            code = _ladderManager.ReportWin(winningPlayer, losingPlayer);
                         }
 
                         if (code.Ok())
@@ -524,7 +514,7 @@ namespace Beef {
 
                         if (rank != -1) {
                             BeefEntry existingPlayer;
-                            code = _presentationManager.RenamePlayer(rank - 1, newName, out existingPlayer);
+                            code = _ladderManager.RenamePlayer(rank - 1, newName, out existingPlayer);
 
                             if (existingPlayer != null) {
                                 playerOrRankToRename = existingPlayer.PlayerName;
@@ -533,7 +523,7 @@ namespace Beef {
                                 }
                             }
                         } else {
-                            code = _presentationManager.RenamePlayer(playerOrRankToRename, newName);
+                            code = _ladderManager.RenamePlayer(playerOrRankToRename, newName);
                         }
 
                         if (code.Ok()) {
@@ -556,7 +546,7 @@ namespace Beef {
 
                         BeefEntry player1 = null;
                         BeefEntry player2 = null;
-                        code = _presentationManager.SwitchPlayers(playerOrRank1, playerOrRank2, out player1, out player2);
+                        code = _ladderManager.SwitchPlayers(playerOrRank1, playerOrRank2, out player1, out player2);
 
                         if (code.Ok()) {
                             MessageChannel(channel, "**" + player1.PlayerName + "** has been switched with **" + player2.PlayerName + "**").GetAwaiter().GetResult();
@@ -592,19 +582,19 @@ namespace Beef {
 
                         if (rank != -1) {
                             BeefEntry removedPlayerEntry;
-                            code = _presentationManager.RemovePlayer(rank - 1, out removedPlayerEntry);
+                            code = _ladderManager.RemovePlayer(rank - 1, out removedPlayerEntry);
 
                             if (code.Ok())
                                 playerToRemove = removedPlayerEntry.PlayerName;
                         } else {
-                            code = _presentationManager.RemovePlayer(playerToRemove);
+                            code = _ladderManager.RemovePlayer(playerToRemove);
                         }
 
                         if (code.Ok()) {
                             MessageChannel(channel, "Removed **" + playerToRemove + "** from the ladder.").GetAwaiter().GetResult();
                         }
                     } else if (arguments[1] == "bracket" || arguments[1] == "list" || arguments[1] == "ladder") {
-                        List<BeefEntry> entries = _presentationManager.ReadBracket();
+                        List<BeefEntry> entries = _ladderManager.ReadBracket();
 
                         if (entries.Count == 0)
                             code = ErrorCode.CouldNotReadTheLadder;
@@ -643,7 +633,7 @@ namespace Beef {
                             return;
                         }
 
-                        code = _presentationManager.Undo();
+                        code = _ladderManager.Undo();
                         if (code.Ok()) {
                             MessageChannel(channel, "Undid what you should have done undid 10 minutes ago.").GetAwaiter().GetResult();
                         }
@@ -658,7 +648,7 @@ namespace Beef {
                         code = ErrorCode.Success;
 
                         String help = "";
-                        help += "The Beef ladder is maintained on Google Docs as a Slide presentation.  This bot makes it more convenient to update it.  Each Beef command is prefixed with \"%beef%\".\n";
+                        help += "This bot maintains the current Beef Ladder and provides commands to update it. It also can monitor twitch streams and notify when they go live and read MMR of players that are linked automatically.  Each Beef command is prefixed with \"%beef%\".\n";
                         help += "Note, commands that have parameters in them surrounded in [] means that parameter is optional.  As an example \"all\" is a common suffix you can add to make a command print to the chat instead of whispering the response to you.\n";
                         help += "The following commands are available:\n";
                         help += "\t **%beef%** - Prints the link to the ladder.\n";
@@ -879,11 +869,6 @@ namespace Beef {
 
         public void OnMmrRead(List<Tuple<ProfileInfo, LadderInfo>> mmrList) {
             _mainContext.Post((_) => {
-                if (!_presentationManager.Authenticate().Ok()) {
-                    Console.WriteLine("Could not authenticate when reading MMR.");
-                    return;
-                }
-
                 // Make the list a dictionary so we can quickly lookup MMR
                 var profileIdToMaxMmrDict = new Dictionary<String, Tuple<ProfileInfo, LadderInfo>>();
                 foreach (Tuple<ProfileInfo, LadderInfo> entry in mmrList) {
@@ -919,7 +904,7 @@ namespace Beef {
                         Console.WriteLine("Warning: User " + user.BeefName + " already exists in the profileIdToMaxMmrDict!");
                 }
 
-                _presentationManager.UpdateMmrDictionary(profileIdToMaxMmrDict);
+                _ladderManager.UpdateMmrDictionary(profileIdToMaxMmrDict);
 
                 Console.WriteLine($"Read MMR.  Users:");
                 foreach (Tuple<ProfileInfo, LadderInfo> entry in mmrList) {

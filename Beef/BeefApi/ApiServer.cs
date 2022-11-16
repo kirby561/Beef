@@ -18,7 +18,7 @@ namespace Beef.BeefApi {
         private String _configFilePath;
         private SynchronizationContext _mainContext;
         private BeefUserConfigManager _beefUserManager;
-        private PresentationManager _ladderManager;
+        private LadderManager _ladderManager;
         private WebApplication _application;
         private Thread _thread;
         private SynchronizationContext _threadContext;
@@ -26,7 +26,7 @@ namespace Beef.BeefApi {
         private List<Socket> _eventClients = new List<Socket>();
         private object _lock = new object();
 
-        public ApiServer(String configFilePath, SynchronizationContext mainContext, PresentationManager ladderManager, BeefUserConfigManager beefUserManager) {
+        public ApiServer(String configFilePath, SynchronizationContext mainContext, LadderManager ladderManager, BeefUserConfigManager beefUserManager) {
             _configFilePath = configFilePath;
             _mainContext = mainContext;
             _ladderManager = ladderManager;
