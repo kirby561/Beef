@@ -1,5 +1,5 @@
 {
-	"Version": 3,
+	"Version": 5,
 	"DiscordBotToken": "<YourDiscordBotTokenHere>",
 	"BotPrefix": ".",
 	"LeaderRoles": [ "ExampleRole1", "ExampleRole2" ],
