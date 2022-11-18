@@ -10,9 +10,9 @@ namespace Beef {
 
             // Check for a config file
             String parentDirectory = Directory.GetParent(exePath).FullName;
-            BeefConfig config = ConfigFileManager.ReadConfigFile(parentDirectory + "/config.json");
+            BeefConfig config = ConfigFileManager.ReadConfigFile(parentDirectory + "/Config.json");
             if (config == null) {
-                Console.WriteLine("You need a file called \"config.json\" in the same directory as your executable.  Modify the config.json.example file with your credentials and bot information and rename it to config.json.");
+                Console.WriteLine("You need a file called \"Config.json\" in the same directory as your executable.  Modify the Config.json.example file with your credentials and bot information and rename it to Config.json.");
                 return;
             }
 
