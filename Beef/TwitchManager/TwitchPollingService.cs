@@ -67,6 +67,16 @@ namespace Beef.TwitchManager {
         }
 
         /// <summary>
+        /// Escapes all the underscores in the given name. There are other special characters but only underscores
+        /// are allowed in twitch URLs and thus twitch names.
+        /// </summary>
+        /// <param name="name">The name to escape</param>
+        /// <returns>The same name with all the _ escaped.</returns>
+        protected String EscapeUnderscores(String name) {
+            return name.Replace("_", "\\_");
+        }
+
+        /// <summary>
         /// Checks and updates the live status of the given stream using the given access token for authentication.
         /// </summary>
         /// <param name="stream">The stream to check.</param>
@@ -122,7 +132,7 @@ namespace Beef.TwitchManager {
                                 if (_twitchLiveListener != null) {
                                     // Fill in the variables for the go live message
                                     String goLiveMessage = stream.GoLiveMessage
-                                        .Replace(TwitchNameVariable, name)
+                                        .Replace(TwitchNameVariable, EscapeUnderscores(name))
                                         .Replace(StreamLinkVariable, stream.StreamUrl)
                                         .Replace(GameVariable, entry.game_name)
                                         .Replace(StreamTitleVariable, entry.title);

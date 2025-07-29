@@ -28,7 +28,7 @@ namespace Beef {
             try {
                 configFile = JsonConvert.DeserializeObject<BeefConfig>(configFileText);
             } catch (Exception ex) {
-                Console.WriteLine("Could not deserialize the config file.  Is the format correct?  See config.json.example for correct usage.");
+                Console.WriteLine("Could not deserialize the config file.  Is the format correct?  See Config.json.example for correct usage.");
                 Console.WriteLine("Exception: " + ex.Message);
                 if (ex.InnerException != null) {
                     Console.WriteLine("Inner Exception: " + ex.InnerException.Message);
